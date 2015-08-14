@@ -4,6 +4,12 @@ from ishikawa import filter_ishikawa, filter_ishikawa_traj
 from peak_matching import process_peaks
 from rbf import fit_rbfs
 
+# Mask for LIBS channels
+ALAMOS_MASK = np.zeros(6144, dtype=bool)
+ALAMOS_MASK[110:1994] = True
+ALAMOS_MASK[2169:4096] = True
+ALAMOS_MASK[4182:5856] = True
+
 
 def resample(spectrum, target_bands):
   m = spectrum[:,1].min()
@@ -48,4 +54,3 @@ def _convert_labels(Y, names):
                                     return_inverse=True)
   label_map = np.array([n.split('-',1)[0] for n in names[class_idxs]])
   return labels, label_map
-
