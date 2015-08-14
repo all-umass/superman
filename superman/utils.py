@@ -3,12 +3,29 @@ import numpy as np
 from ishikawa import filter_ishikawa, filter_ishikawa_traj
 from peak_matching import process_peaks
 from rbf import fit_rbfs
+from sklearn.preprocessing import normalize
 
 # Mask for LIBS channels
 ALAMOS_MASK = np.zeros(6144, dtype=bool)
 ALAMOS_MASK[110:1994] = True
 ALAMOS_MASK[2169:4096] = True
 ALAMOS_MASK[4182:5856] = True
+
+
+def libs_norm3(shots):
+    num_chan = shots.shape[1]
+    assert num_chan in (6143, 6144, 5485)
+    if num_chan == 6143:
+        a, b = 2047, 4097
+    elif num_chan == 6144:
+        a, b = 2048, 4098
+    elif num_chan == 5485:
+        a, b = 1884, 3811
+    n3shots = np.copy(shots)
+    normalize(n3shots[:, :a], norm='l1', copy=False)
+    normalize(n3shots[:,a:b], norm='l1', copy=False)
+    normalize(n3shots[:, b:], norm='l1', copy=False)
+    return n3shots
 
 
 def resample(spectrum, target_bands):
