@@ -104,6 +104,7 @@ def add_preprocess_opts(op):
 
 def validate_preprocess_opts(op, opts):
   valid_squashes = set(('sqrt','log','hinge','tanh','cos'))
+  valid_norms = set(('l1','l2','max','min','cum','norm3'))
   for pp in opts.pp:
     for step in pp.split(','):
       parts = step.split(':')
@@ -111,8 +112,7 @@ def validate_preprocess_opts(op, opts):
         if len(parts) not in (2,3) or parts[1] not in valid_squashes:
           op.error('Invalid squash argument: %s' % parts)
       elif parts[0] == 'normalize':
-        if (len(parts) not in (2,3)
-            or parts[1] not in ('l1','l2','max','min','cum')):
+        if len(parts) not in (2,3) or parts[1] not in valid_norms:
           op.error('Invalid normalize argument: %s' % parts)
         if len(parts) == 3 and parts[1] != 'max':
           op.error('Split not implemented for non-max normalizers')
