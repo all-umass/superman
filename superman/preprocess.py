@@ -122,6 +122,7 @@ def _normalize(S, norm_type, splits='1'):
 
 
 def libs_norm3(shots, copy=True):
+  shots = np.array(shots, copy=copy, ndmin=2)
   num_chan = shots.shape[1]
   assert num_chan in (6143, 6144, 5485)
   if num_chan == 6143:
@@ -130,11 +131,10 @@ def libs_norm3(shots, copy=True):
     a, b = 2048, 4098
   elif num_chan == 5485:
     a, b = 1884, 3811
-  n3shots = np.asarray(shots, copy=copy)
-  normalize(n3shots[:, :a], norm='l1', copy=False)
-  normalize(n3shots[:,a:b], norm='l1', copy=False)
-  normalize(n3shots[:, b:], norm='l1', copy=False)
-  return n3shots
+  normalize(shots[:, :a], norm='l1', copy=False)
+  normalize(shots[:,a:b], norm='l1', copy=False)
+  normalize(shots[:, b:], norm='l1', copy=False)
+  return shots
 
 
 def _deriv(S, window, order):
