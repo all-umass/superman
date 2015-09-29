@@ -64,12 +64,12 @@ def _segment(x, y):
 def iterative_threshold(signal, num_stds=3):
   thresh = signal.mean(axis=-1) + num_stds * signal.std(axis=-1)
   old_mask = np.ones_like(signal, dtype=bool)
-  mask = signal < thresh
+  mask = signal < np.array(thresh, copy=False)[...,None]
   while (mask != old_mask).any():
     below = signal[mask]
     thresh = below.mean(axis=-1) + num_stds * below.std(axis=-1)
     old_mask = mask
-    mask = signal < thresh
+    mask = signal < np.array(thresh, copy=False)[...,None]
   return mask
 
 
