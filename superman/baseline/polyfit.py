@@ -16,7 +16,8 @@ def polyfit_baseline(bands, intensities, poly_order=5, num_stdv=3.,
     coefs = np.polyfit(bands, fit_pts.T, poly_order)
     baseline = poly_terms.dot(coefs).T
     diff = fit_pts - baseline
-    mask = diff > (diff.std(axis=-1) * num_stdv)
+    thresh = diff.std(axis=-1) * num_stdv
+    mask = diff > np.array(thresh, copy=False)[...,None]
     unfitted = np.count_nonzero(mask)
     if unfitted == 0:
       break
