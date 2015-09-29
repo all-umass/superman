@@ -37,8 +37,8 @@ def dietrich_baseline(bands, intensities, half_window=16, num_erosions=10):
 
   # Step 4: Reconstruct baseline via interpolation.
   if Y.ndim == 2:
-    return np.row_stack([np.interp(bands, bands[m], intensities[m])
-                         for m in is_baseline])
+    return np.row_stack([np.interp(bands, bands[m], y[m])
+                         for y, m in zip(intensities, is_baseline)])
   return np.interp(bands, bands[is_baseline], intensities[is_baseline])
 
 
