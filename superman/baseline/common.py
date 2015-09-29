@@ -70,7 +70,7 @@ def iterative_threshold(signal, num_stds=3):
     thresh = below.mean(axis=-1) + num_stds * below.std(axis=-1)
     old_mask = mask
     mask = signal >= np.array(thresh, copy=False)[...,None]
-  return mask
+  return ~mask
 
 
 class WhittakerSmoother(object):
