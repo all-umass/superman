@@ -32,7 +32,7 @@ def setup_common_opts():
                   help='Data directory. [%(default)s]')
   og.add_argument('--traj', action='store_true', help='Use trajectory methods')
   og.add_argument('--raw', action='store_true',
-		  help='Use non-baseline-removed data')
+                  help='Use non-baseline-removed data')
   og.add_argument('--parallel', type=int, default=DEFAULTS.parallel,
                   help='Number of processes/threads to use. [%(default)s]')
   return op
@@ -73,16 +73,11 @@ def add_output_options(op):
 
 def add_peak_opts(op):
   og = op.add_argument_group('Peak-Matching Options')
-  og.add_argument('--binarize', action='store_true',
-                  help='Clamp sparsified peaks to 0 or 1.')
   og.add_argument('--peak-alg', type=str, default=DEFAULTS.peak_alg,
                   choices=('scipy', 'sg', 'std'),
                   help='Peak-finding algorithm. [%(default)s]')
-  og.add_argument('--peak-type', type=str, default=DEFAULTS.peak_type,
-                  choices=('sparse', 'dense'),
-                  help='Type of peak preprocessing. [%(default)s]')
   og.add_argument('--num-peaks', type=int, default=DEFAULTS.num_peaks,
-                  help='Max # of peaks to detect (dense only). [%(default)s]')
+                  help='Max # of peaks to detect per spectrum. [%(default)s]')
 
 
 def add_preprocess_opts(op):

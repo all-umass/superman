@@ -9,7 +9,7 @@ from preprocess import savitzky_golay, preprocess
 import options
 
 
-def savitzky_golay_peaks(spectra, min_interpeak_separation=10,
+def savitzky_golay_peaks(spectra, max_peaks, min_interpeak_separation=10,
                          peak_percentile=80):
   deriv = savitzky_golay(spectra, deriv=1)
   # possible sign change values are [-2,0,2]
@@ -21,13 +21,19 @@ def savitzky_golay_peaks(spectra, min_interpeak_separation=10,
     maxima, = np.where(sign_change[i] == 2)
     # interpolate
     peak_locs = maxima + dy[maxima] / (dy[maxima] - dy[maxima+1])
-    # cut out short peaks (TODO: use the data to better set min_peak_height?)
+    # cut out short peaks
     peaks = np.interp(peak_locs, idx, spectra[i])
-    min_peak_height = np.percentile(peaks, peak_percentile)
-    peak_locs = peak_locs[peaks >= min_peak_height]
+    mask = peaks >= np.percentile(peaks, peak_percentile)
+    peak_locs = peak_locs[mask]
+    peaks = peaks[mask]
     # cut out close peaks
     peak_sep = np.ediff1d(peak_locs, to_begin=[min_interpeak_separation])
-    peak_locs = peak_locs[peak_sep >= min_interpeak_separation]
+    mask = peak_sep >= min_interpeak_separation
+    peak_locs = peak_locs[mask]
+    peaks = peaks[mask]
+    # use the highest k peaks
+    if max_peaks > 0 and len(peak_locs) > max_peaks:
+      peak_locs = peak_locs[np.argsort(peaks)[-max_peaks:]]
     all_peaks.append(peak_locs)
   return all_peaks
 
@@ -38,27 +44,40 @@ def _scipy_peaks(args):
   return scipy.signal.find_peaks_cwt(*args)
 
 
-def scipy_peaks(spectra, parallel=True):
+def scipy_peaks(spectra, max_peaks, parallel=True):
   # TODO: look into the source to see if we can vectorize this
   #  -> https://github.com/scipy/scipy/blob/master/scipy/signal/_peak_finding.py
   widths = np.arange(1, 10)
   all_args = ((s,widths) for s in spectra)
   if parallel:
-    return get_mp_pool(None).map(_scipy_peaks, all_args)
-  return map(_scipy_peaks, all_args)
+    map = get_mp_pool(None).map
+  all_peaks = map(_scipy_peaks, all_args)
+  if max_peaks <= 0:
+    return all_peaks
+  # filter to only have max_peaks per spectrum
+  for i, peak_locs in enumerate(all_peaks):
+    if len(peak_locs) > max_peaks:
+      peak_locs = np.array(peak_locs)
+      peaks = spectra[i, peak_locs]
+      all_peaks[i] = peak_locs[np.argsort(peaks)[-max_peaks:]]
+  return all_peaks
 
 
-def threshold_peaks(spectra, num_stdv=4):
+def threshold_peaks(spectra, max_peaks, num_stdv=4):
   mu = np.mean(spectra, axis=1)
   std = np.std(spectra, axis=1)
   thresh = mu + num_stdv*std
   peak_mask = spectra > thresh[:,None]
-  # use the mean of contiguous segments in the peak mask
+  # Use the mean of contiguous segments in the peak mask
+  # Note: if peaks overlap, this will fail!
   changes = np.diff(peak_mask.astype(int))
   ret = []
-  for c in changes:
+  for i, c in enumerate(changes):
     idx, = c.nonzero()
     means = (idx[::2] + idx[1::2]) // 2 + 1
+    # use the highest k peaks
+    if max_peaks > 0 and len(means) > max_peaks:
+      means = means[np.argsort(spectra[i,means])[-max_peaks:]]
     ret.append(means)
   return ret
 
@@ -73,7 +92,7 @@ PEAK_FINDERS = {
 def find_peaks(spectra, opts):
   if opts.peak_alg not in PEAK_FINDERS:
     sys.exit('Invalid --peak_alg option: ' + opts.peak_alg)
-  return PEAK_FINDERS[opts.peak_alg](spectra)
+  return PEAK_FINDERS[opts.peak_alg](spectra, opts.num_peaks)
 
 
 if __name__ == '__main__':
@@ -92,7 +111,7 @@ if __name__ == '__main__':
       peaks = np.interp(peaks_idx, idx, spectrum)
       pyplot.plot(peaks_idx, peaks, line_color+'o', markersize=5)
     pyplot.legend()
-    pyplot.title(opts.peak_alg)
+    pyplot.title('Peak alg: ' + opts.peak_alg)
     pyplot.show()
 
   def main():
