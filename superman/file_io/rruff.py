@@ -29,6 +29,11 @@ def parse(fh, return_comments=False):
   return data
 
 
+def write_rruff(fname, traj, comments):
+  '''Write a RRUFF file to `fname`.'''
+  np.savetxt(fname, traj, fmt='%f', header=comments)
+
+
 def sample_name(filepath):
   # Talc__R040137__Raman__785__0__unoriented__Raman_Data_Processed__19798.txt
   name_parts = os.path.basename(filepath).rstrip()[:-4].split('__')

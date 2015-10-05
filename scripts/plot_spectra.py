@@ -2,7 +2,6 @@
 from argparse import ArgumentParser
 from os.path import basename
 from matplotlib import pyplot
-from math import ceil
 from superman.baseline import BL_CLASSES
 from superman.preprocess import preprocess
 from superman.file_io import parse_spectrum

@@ -6,6 +6,7 @@ from argparse import ArgumentParser
 from superman.baseline import BL_CLASSES
 from superman.file_io import parse_spectrum
 
+
 def main():
   ap = ArgumentParser()
   ap.add_argument('--algorithm', default='als', choices=BL_CLASSES.keys(),
@@ -14,8 +15,6 @@ def main():
                   help='Auto-detect band segments and run on each separately.')
   ap.add_argument('-o', '--out-dir', help='If provided, write corrected files'
                                           ' to disk instead of plotting them.')
-  # ap.add_argument('-v','--verbose', action='store_true',
-  #                 help='Enable verbose output.')
   ap.add_argument('files', type=open, nargs='+')
   args = ap.parse_args()
 
@@ -44,4 +43,3 @@ def main():
 
 if __name__ == '__main__':
   main()
-

@@ -1,7 +1,7 @@
 import numpy as np
 
 from opus import write_opus, parse_traj as parse_opus
-from rruff import parse as parse_rruff
+from rruff import write_rruff, parse as parse_rruff
 from spc import parse_traj as parse_spc
 
 
@@ -30,8 +30,8 @@ def parse_asc(fh):
     if line.startswith('------'):
       break
   # Skip two lines of header (XXX)
-  foo = next(fh)
-  bar = next(fh)
+  next(fh)
+  next(fh)
   bands,intensities,stdv = np.loadtxt(fh).T
   mask = (stdv >= 0) & (intensities > -1e3)  # exclude bogus negative values
   bands = bands[mask]
@@ -39,4 +39,3 @@ def parse_asc(fh):
   # convert microns to wavenumbers, reversing the order to keep it ascending
   bands = 10000./bands[::-1]
   return np.column_stack((bands, intensities))
-
