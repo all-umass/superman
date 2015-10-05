@@ -1,9 +1,6 @@
 import numpy as np
 
 from ishikawa import filter_ishikawa, filter_ishikawa_traj
-from peak_matching import process_peaks
-from rbf import fit_rbfs
-from sklearn.preprocessing import normalize
 
 # Mask for LIBS channels
 ALAMOS_MASK = np.zeros(6144, dtype=bool)
@@ -41,12 +38,6 @@ def _post_prepare(X, Y, names, traj, opts):
     filter_fn = filter_ishikawa_traj if traj else filter_ishikawa
     X, Y, names = filter_fn(X, Y, names)
   labels, label_map = _convert_labels(Y, names)
-  if opts.peaks:
-    assert not traj, 'Peak fitting is NYI for traj data'
-    X = process_peaks(X, opts)
-  if opts.rbf:
-    assert not traj, 'RBF fitting is NYI for traj data'
-    X = fit_rbfs(X)
   return X, labels, label_map, names
 
 
