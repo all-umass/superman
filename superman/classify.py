@@ -55,7 +55,6 @@ def main():
   options.add_preprocess_opts(op)
   options.add_distance_options(op)
   options.add_output_options(op)
-  options.add_peak_opts(op)
   opts = options.parse_opts(op)
   options.validate_preprocess_opts(op, opts)
   if opts.tsv and opts.show_errors:

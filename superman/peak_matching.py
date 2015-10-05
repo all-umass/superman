@@ -1,7 +1,5 @@
 import numpy as np
 import scipy.signal
-import scipy.sparse
-import sys
 from time import time
 
 from mp import get_mp_pool
@@ -89,18 +87,12 @@ PEAK_FINDERS = {
 }
 
 
-def find_peaks(spectra, opts):
-  if opts.peak_alg not in PEAK_FINDERS:
-    sys.exit('Invalid --peak_alg option: ' + opts.peak_alg)
-  return PEAK_FINDERS[opts.peak_alg](spectra, opts.num_peaks)
-
-
 if __name__ == '__main__':
   from matplotlib import pyplot
 
   def debug_peaks(spectra, labels, opts):
     tic = time()
-    all_peaks = find_peaks(spectra, opts)
+    all_peaks = PEAK_FINDERS[opts.peak_alg](spectra, opts.num_peaks)
     print '%s: %.3f secs' % (opts.peak_alg, time() - tic)
     print map(len, all_peaks), 'peaks found'
     pyplot.figure()
@@ -117,8 +109,11 @@ if __name__ == '__main__':
     op = options.setup_common_opts()
     op.add_argument('--debug', type=str, nargs='+', default=['Trolleite'],
                     help='Species name(s) to show before/after. %(default)s')
+    op.add_argument('--peak-alg', default='std', choices=PEAK_FINDERS,
+                    help='Peak-finding algorithm. [%(default)s]')
+    op.add_argument('--num-peaks', type=int, default=-1,
+                    help='Max # of peaks to detect per spectrum. [%(default)s]')
     options.add_preprocess_opts(op)
-    options.add_peak_opts(op)
     opts = options.parse_opts(op, lasers=False)
     options.validate_preprocess_opts(op, opts)
 

@@ -237,7 +237,6 @@ def main():
   op = options.setup_common_opts()
   op.add_argument('--output', type=str, default='plot', choices=PRINTERS.keys(),
                   help='Kind of generated output. [%(default)s]')
-  options.add_peak_opts(op)
   options.add_preprocess_opts(op)
   options.add_distance_options(op)
   options.add_output_options(op)

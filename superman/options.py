@@ -7,8 +7,7 @@ def mock_options(parallel=20, dana=False, show_errors=False, rank=[1],
                  tsv=False, metric=['cosine'], k=[-1], type='raman',
                  weights=['distance'], pp=[''], ishikawa=False,
                  laser=['all'], data_dir=None, traj=False, raw=False,
-                 peak_alg='sg', num_peaks=20, clf='knn', min_samples=3,
-                 folds=1, trials=1):
+                 clf='knn', min_samples=3, folds=1, trials=1):
   kwargs = locals()  # Tricky hack: get the kwargs as a dict.
   MockOpt = namedtuple('MockOpt', kwargs.keys())
   if data_dir is None:
@@ -69,15 +68,6 @@ def add_output_options(op):
                   help='Print output in a TSV-like format.')
   og.add_argument('--ishikawa', action='store_true',
                   help='Use the Ishikawa minerals subset.')
-
-
-def add_peak_opts(op):
-  og = op.add_argument_group('Peak-Matching Options')
-  og.add_argument('--peak-alg', type=str, default=DEFAULTS.peak_alg,
-                  choices=('scipy', 'sg', 'std'),
-                  help='Peak-finding algorithm. [%(default)s]')
-  og.add_argument('--num-peaks', type=int, default=DEFAULTS.num_peaks,
-                  help='Max # of peaks to detect per spectrum. [%(default)s]')
 
 
 def add_preprocess_opts(op):
