@@ -5,10 +5,10 @@ from collections import namedtuple
 
 def mock_options(parallel=20, dana=False, show_errors=False, rank=[1],
                  tsv=False, metric=['cosine'], k=[-1], type='raman',
-                 weights=['distance'], pp=[''], ishikawa=False, peaks=False,
-                 rbf=False, laser=['all'], data_dir=None, traj=False,
-                 binarize=False, peak_alg='sg', peak_type='sparse', raw=False,
-                 num_peaks=20, clf='knn', min_samples=3, folds=1, trials=1):
+                 weights=['distance'], pp=[''], ishikawa=False,
+                 laser=['all'], data_dir=None, traj=False, raw=False,
+                 peak_alg='sg', num_peaks=20, clf='knn', min_samples=3,
+                 folds=1, trials=1):
   kwargs = locals()  # Tricky hack: get the kwargs as a dict.
   MockOpt = namedtuple('MockOpt', kwargs.keys())
   if data_dir is None:
@@ -93,8 +93,6 @@ def add_preprocess_opts(op):
       pca:num_pcs
       {poly,bezier}:a:b
     '''.split()))
-  og.add_argument('--peaks', action='store_true', help='Use peak-matching.')
-  og.add_argument('--rbf', action='store_true', help='Use RBF fitter.')
 
 
 def validate_preprocess_opts(op, opts):
