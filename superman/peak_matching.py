@@ -96,30 +96,29 @@ def find_peaks(spectra, opts):
 
 
 if __name__ == '__main__':
+  from matplotlib import pyplot
 
   def debug_peaks(spectra, labels, opts):
     tic = time()
     all_peaks = find_peaks(spectra, opts)
     print '%s: %.3f secs' % (opts.peak_alg, time() - tic)
     print map(len, all_peaks), 'peaks found'
-    from matplotlib import pyplot
+    pyplot.figure()
     idx = np.arange(spectra.shape[1])
-    for i,spectrum in enumerate(spectra):
-      line, = pyplot.plot(spectrum, label=labels[i])
+    for spectrum, peak_locs, label in zip(spectra, all_peaks, labels):
+      line, = pyplot.plot(spectrum, label=label)
       line_color = pyplot.getp(line, 'color')
-      peaks_idx = all_peaks[i]
-      peaks = np.interp(peaks_idx, idx, spectrum)
-      pyplot.plot(peaks_idx, peaks, line_color+'o', markersize=5)
+      peaks = np.interp(peak_locs, idx, spectrum)
+      pyplot.plot(peak_locs, peaks, line_color+'o', markersize=5)
     pyplot.legend()
     pyplot.title('Peak alg: ' + opts.peak_alg)
-    pyplot.show()
 
   def main():
     op = options.setup_common_opts()
     op.add_argument('--debug', type=str, nargs='+', default=['Trolleite'],
                     help='Species name(s) to show before/after. %(default)s')
-    options.add_peak_opts(op)
     options.add_preprocess_opts(op)
+    options.add_peak_opts(op)
     opts = options.parse_opts(op, lasers=False)
     options.validate_preprocess_opts(op, opts)
 
@@ -129,8 +128,9 @@ if __name__ == '__main__':
     mask = np.in1d([n.split('-',1)[0] for n in names], opts.debug)
     spectra = data['data'][mask]
     labels = names[mask]
-    pp, = opts.pp
-    spectra = preprocess(spectra, pp)
-    debug_peaks(spectra, labels, opts)
+    for pp in opts.pp:
+      spectra = preprocess(spectra.copy(), pp)
+      debug_peaks(spectra, labels, opts)
+    pyplot.show()
 
   main()
