@@ -11,8 +11,9 @@ def mock_options(parallel=20, dana=False, show_errors=False, rank=[1],
   kwargs = locals()  # Tricky hack: get the kwargs as a dict.
   MockOpt = namedtuple('MockOpt', kwargs.keys())
   if data_dir is None:
+    # Semi-hack: data now lives in another repository.
     kwargs['data_dir'] = os.path.normpath(os.path.join(
-        os.path.dirname(__file__), '..', '{type}', 'data'))
+        os.path.dirname(__file__), '../../darby_projects/', '{type}', 'data'))
   return MockOpt(**kwargs)
 
 # Make a singleton tuple with the defaults for everything.
