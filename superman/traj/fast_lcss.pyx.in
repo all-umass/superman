@@ -1,3 +1,5 @@
+# -*- cython -*-
+
 # cython: boundscheck=False
 # cython: wraparound=False
 # cython: nonecheck=False
@@ -11,9 +13,13 @@ from libc.math cimport fmin, fabs, sqrt
 IDX_DTYPE = np.int32
 ctypedef np.int32_t IDX_DTYPE_t
 
+{{py:
+METRICS = ['match', 'combo']
+}}
 
-cpdef float traj_match(floating[:,::1] a, floating[:,::1] b,
-                       float intensity_eps) nogil:
+{{for mtype in METRICS}}
+
+cpdef float traj_{{mtype}}(floating[:,::1] a, floating[:,::1] b, float w) nogil:
   cdef IDX_DTYPE_t na = <IDX_DTYPE_t> a.shape[0]+1
   cdef IDX_DTYPE_t nb = <IDX_DTYPE_t> b.shape[0]+1
   cdef IDX_DTYPE_t i, j, min_j = 1
@@ -28,7 +34,7 @@ cpdef float traj_match(floating[:,::1] a, floating[:,::1] b,
       if fabs(dx) <= band_eps:
         ay = aa[1]
         by = bb[1]
-        lcs_diag += match_score(ay, by, intensity_eps)
+        lcs_diag += {{mtype}}_score(ay, by, w)
         ssa += ay*ay
         ssb += by*by
       elif dx > 0:
@@ -39,33 +45,7 @@ cpdef float traj_match(floating[:,::1] a, floating[:,::1] b,
         break
   return lcs_diag / sqrt(ssa * ssb)
 
-
-cpdef float traj_combo(floating[:,::1] a, floating[:,::1] b, float w) nogil:
-  cdef IDX_DTYPE_t na = <IDX_DTYPE_t> a.shape[0]+1
-  cdef IDX_DTYPE_t nb = <IDX_DTYPE_t> b.shape[0]+1
-  cdef IDX_DTYPE_t i, j, min_j = 1
-  cdef float dx, ay, by, lcs_diag = 0, ssa = 0, ssb = 0
-  cdef floating[::1] aa, bb
-  cdef float band_eps = optimal_band_eps(a, b)
-  for i in range(na-1):
-    aa = a[i,:]
-    for j in range(min_j, nb):
-      bb = b[j-1,:]
-      dx = aa[0] - bb[0]
-      if fabs(dx) <= band_eps:
-        ay = aa[1]
-        by = bb[1]
-        lcs_diag += combo_score(ay, by, w)
-        ssa += ay*ay
-        ssb += by*by
-      elif dx > 0:
-        # b is still behind a
-        min_j = j
-      else:
-        # b is past a, so no more matches, skip ahead
-        break
-  return lcs_diag / sqrt(ssa * ssb)
-
+{{endfor}}
 
 cpdef float optimal_band_eps(floating[:,::1] a,
                              floating[:,::1] b) nogil:
@@ -89,3 +69,4 @@ cdef inline float match_score(float ay, float by, float intensity_eps) nogil:
 
 cdef inline float combo_score(float ay, float by, float w) nogil:
   return w * fabs(ay - by) - (1 - w) * (ay * by)
+
