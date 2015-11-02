@@ -22,7 +22,10 @@ def parse(fh, return_comments=False):
     m = matcher.match(line)
     if not m:
       raise ValueError('Failed to parse line:\n' + line)
-    data.append(map(float, m.groups()))
+    try:
+      data.append(map(float, m.groups()))
+    except ValueError:
+      pass  # TODO: do something here
   data = np.array(data, dtype=np.float32)  # Must be float32 for OPUS format.
   if return_comments:
     return data, ''.join(comments)
