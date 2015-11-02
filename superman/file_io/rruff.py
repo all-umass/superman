@@ -43,20 +43,16 @@ def sample_name(filepath):
   return name, name_parts[1]  # R040137
 
 
-def xrd_minerals():
+def xrd_minerals(path):
   global XRD_MINERALS
   if XRD_MINERALS is None:
-    path = os.path.join(os.path.dirname(__file__),
-                        '../../raman/data/xrd_minerals.tsv')
     XRD_MINERALS = set(np.recfromtxt(path)[:,1])
   return XRD_MINERALS
 
 
-def sq2_minerals():
+def sq2_minerals(path):
   global SQ2_MINERALS
   if SQ2_MINERALS is None:
-    path = os.path.join(os.path.dirname(__file__),
-                        '../../raman/data/quality.tsv')
     quality = np.genfromtxt(path, names=True, dtype=None)
     mask = quality['SQ'] == 2
     SQ2_MINERALS = set(quality[mask]['RRUFF'])
