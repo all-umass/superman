@@ -1,7 +1,8 @@
+from __future__ import absolute_import
 import numpy as np
 
-from common import PeakFinder, _filter_peaks
-from preprocess import savitzky_golay
+from ..preprocess import savitzky_golay
+from .common import PeakFinder, _filter_peaks
 
 
 class SavitzkyGolay(PeakFinder):
