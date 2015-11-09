@@ -1,3 +1,4 @@
+from bump_fit import BumpFit
 from derivative import Derivative
 from savitzky_golay import SavitzkyGolay
 from threshold import Threshold
@@ -9,6 +10,7 @@ PEAK_CLASSES = {
     'sg': SavitzkyGolay,
     'threshold': Threshold,
     'deriv': Derivative,
+    'bumpfit': BumpFit,
 }
 
 
