@@ -39,17 +39,16 @@ def fit_single_peak(bands, intensities, loc, fit_kind='lorentzian',
     fit_func = _gaussian
   else:
     raise ValueError('Unsupported fit_kind: %s' % fit_kind)
+  bounds = ([bands.min(), 0, 0], [bands.max(), np.inf, np.inf])
   # Choose reasonable starting parameters
   params = (loc, intensities[np.searchsorted(bands, loc)], 1)
   log_fn('Starting %s: params=%s' % (fit_kind, params))
-  # TODO: when scipy/scipy#5147 lands, add these bounds to curve_fit
-  bounds = [(bands.min(), bands.max()), (0, np.inf), (0, np.inf)]
   # Keep fitting until the loc (x0) converges
   for i in xrange(max_iter):
     # Weight the channels based on distance from the approx. peak loc
     w = 1 + (bands - loc)**2
-    params, _ = scipy.optimize.curve_fit(fit_func, bands, intensities,
-                                         p0=params, sigma=w)
+    params, _ = curve_fit(fit_func, bands, intensities,
+                          p0=params, sigma=w, bounds=bounds)
     log_fn('%s fit #%d: params=%s' % (fit_kind, i+1, params.tolist()))
     fit_data = fit_func(bands, *params)
     # Check for convergence in peak location
@@ -81,4 +80,16 @@ def _gaussian(x, x0, A, w):
 
 def _dummy(*args, **kwargs):
   pass
+
+
+# Scipy v0.17+ has bounds for curve_fit
+try:
+  scipy.optimize.curve_fit(_dummy, [0], [0], p0=(0,), bounds=(0,1))
+except TypeError:
+  def curve_fit(*args, **kwargs):
+    if 'bounds' in kwargs:
+      del kwargs['bounds']
+    return scipy.optimize.curve_fit(*args, **kwargs)
+else:
+  curve_fit = scipy.optimize.curve_fit
 
