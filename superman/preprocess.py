@@ -140,38 +140,15 @@ def libs_norm3(shots, copy=True):
 def _deriv(S, window, order):
   if scipy.sparse.issparse(S):
     S = S.toarray()
-  return savitzky_golay(S, window_size=int(window), order=int(order), deriv=1)
+  return scipy.signal.savgol_filter(S, int(window), int(order), deriv=1)
 
 
 def _smooth(S, window, order):
   if scipy.sparse.issparse(S):
     S = S.toarray()
-  S = savitzky_golay(S, window_size=int(window), order=int(order), deriv=0)
+  S = scipy.signal.savgol_filter(S, int(window), int(order), deriv=0)
   # get rid of any non-positives created by the smoothing
   return np.maximum(S, 1e-10)
-
-
-def savitzky_golay(spectra, window_size=9, order=4, deriv=0):
-  """Smooth (and optionally differentiate) data with a Savitzky-Golay filter.
-  window_size: the length of the window. Must be an odd integer number.
-  order: the order of the polynomial used in the filtering.
-  deriv: the order of the derivative to compute (0 means only smoothing)
-  """
-  # Recently added to scipy.
-  if hasattr(scipy.signal, 'savgol_filter'):
-    return scipy.signal.savgol_filter(spectra, window_size, order, deriv)
-  # check the window_size arg
-  if window_size % 2 == 0:
-    window_size += 1
-  assert window_size >= order + 2, 'window_size must be >= order + 2'
-  # precompute coefficients with broadcasted exponentiation
-  half_window = (window_size -1) // 2
-  offsets = np.arange(-half_window, half_window+1)
-  coeffs = offsets[:,None] ** np.arange(order+1)[None]
-  # compute the kernel
-  sg_kernel = np.linalg.pinv(coeffs)[deriv,None]
-  # some edge effects here, but it's not a big deal.
-  return scipy.signal.convolve(spectra, sg_kernel, mode='same')
 
 
 def debug(spectra, labels, opts):

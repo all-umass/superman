@@ -1,8 +1,7 @@
-from __future__ import absolute_import
 import numpy as np
+import scipy.signal
 
-from ..preprocess import savitzky_golay
-from .common import PeakFinder, _filter_peaks
+from common import PeakFinder, _filter_peaks
 
 
 class SavitzkyGolay(PeakFinder):
@@ -13,7 +12,8 @@ class SavitzkyGolay(PeakFinder):
     self._peak_percentile = peak_percentile
 
   def _fit_many(self, bands, intensities):
-    deriv = savitzky_golay(intensities, deriv=1)
+    # TODO: add window size and order to instance params
+    deriv = scipy.signal.savgol_filter(intensities, 9, 4, deriv=1)
     # possible sign change values are [-2,0,2]
     sign_change = np.diff(np.sign(deriv).astype(int))
     all_peaks = []
