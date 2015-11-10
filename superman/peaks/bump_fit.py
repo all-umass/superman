@@ -84,7 +84,7 @@ def _dummy(*args, **kwargs):
 
 # Scipy v0.17+ has bounds for curve_fit
 try:
-  scipy.optimize.curve_fit(_dummy, [0], [0], p0=(0,), bounds=(0,1))
+  scipy.optimize.curve_fit(lambda x,a: x+a, [0,1], [0,1], p0=(0,), bounds=(0,1))
 except TypeError:
   def curve_fit(*args, **kwargs):
     if 'bounds' in kwargs:
