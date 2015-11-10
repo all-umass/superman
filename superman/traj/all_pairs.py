@@ -12,18 +12,20 @@ if (not os.path.exists(pyx_file) or
 
 import pyximport
 pyximport.install()
-from fast_lcss import traj_match, traj_combo
+from fast_lcss import traj_match, traj_combo, traj_match_min, traj_combo_min
 
 from superman.mp import get_mp_pool
 
 
 def lcss_within(traj, metric, param, num_procs=1, verbose=True):
+  a_window = np.zeros(20, dtype=np.float32)
+  b_window = np.zeros(20, dtype=np.float32)
   traj_pairs = []
   idx_pairs = []
   for i in xrange(len(traj)):
     for j in xrange(i+1, len(traj)):
       idx_pairs.append((i, j))
-      traj_pairs.append((traj[i], traj[j], param))
+      traj_pairs.append((traj[i], traj[j], param, a_window, b_window))
   shape = (len(traj),) * 2
   S = _fill_matrix(traj_pairs, idx_pairs, shape, metric, num_procs, verbose,
                    symmetric=True)
@@ -33,19 +35,23 @@ def lcss_within(traj, metric, param, num_procs=1, verbose=True):
 
 
 def lcss_between(traj1, traj2, metric, param, num_procs=1, verbose=True):
+  a_window = np.zeros(20, dtype=np.float32)
+  b_window = np.zeros(20, dtype=np.float32)
   traj_pairs = []
   idx_pairs = []
   for i,t1 in enumerate(traj1):
     for j,t2 in enumerate(traj2):
       idx_pairs.append((i, j))
-      traj_pairs.append((t1, t2, param))
+      traj_pairs.append((t1, t2, param, a_window, b_window))
   shape = (len(traj1), len(traj2))
   return _fill_matrix(traj_pairs, idx_pairs, shape, metric, num_procs, verbose,
                       symmetric=False)
 
 
 def lcss_search(query, library, metric, param, num_procs=1, verbose=True):
-  traj_pairs = [(query, traj, param) for traj in library]
+  a_window = np.zeros(20, dtype=np.float32)
+  b_window = np.zeros(20, dtype=np.float32)
+  traj_pairs = [(query, traj, param, a_window, b_window) for traj in library]
   pool = get_mp_pool(num_procs)
   if metric == 'ms':
     S = pool.map(_ms_score, traj_pairs)
@@ -60,11 +66,13 @@ def lcss_search(query, library, metric, param, num_procs=1, verbose=True):
 
 # MP.map functions have to be toplevel
 def _ms_score(args):
-  return traj_match(*args)
+  return traj_match_min(*args)
+  #return traj_match(*args[:3])
 
 
 def _combo_score(args):
-  return traj_combo(*args)
+  return traj_combo_min(*args)
+  #return traj_combo(*args[:3])
 
 
 def _fill_matrix(traj_pairs, idx_pairs, S_shape, metric, num_procs, verbose,

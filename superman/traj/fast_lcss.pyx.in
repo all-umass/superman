@@ -1,5 +1,6 @@
 # -*- cython -*-
 
+# cython: initializedcheck=False
 # cython: boundscheck=False
 # cython: wraparound=False
 # cython: nonecheck=False
@@ -12,15 +13,21 @@ from libc.math cimport fmin, fabs, sqrt
 METRICS = ['match', 'combo']
 }}
 
-{{for mtype in METRICS}}
+{{def preamble}}
 
-cpdef float traj_{{mtype}}(float[:,::1] a, float[:,::1] b, float w) nogil:
   cdef Py_ssize_t na = <Py_ssize_t> a.shape[0]+1
   cdef Py_ssize_t nb = <Py_ssize_t> b.shape[0]+1
   cdef Py_ssize_t i, j, min_j = 1
   cdef float dx, ay, by, lcs_diag = 0, ssa = 0, ssb = 0
   cdef float[::1] aa, bb
   cdef float band_eps = optimal_band_eps(a, b)
+
+{{enddef}}
+
+{{for mtype in METRICS}}
+
+cpdef float traj_{{mtype}}(float[:,::1] a, float[:,::1] b, float w) nogil:
+  {{preamble}}
   for i in range(na-1):
     aa = a[i,:]
     for j in range(min_j, nb):
@@ -29,6 +36,40 @@ cpdef float traj_{{mtype}}(float[:,::1] a, float[:,::1] b, float w) nogil:
       if fabs(dx) <= band_eps:
         ay = aa[1]
         by = bb[1]
+        lcs_diag += {{mtype}}_score(ay, by, w)
+        ssa += ay*ay
+        ssb += by*by
+      elif dx > 0:
+        # b is still behind a
+        min_j = j
+      else:
+        # b is past a, so no more matches, skip ahead
+        break
+  return lcs_diag / sqrt(ssa * ssb)
+
+cpdef float traj_{{mtype}}_min(
+    float[:,::1] a, float[:,::1] b, float w,
+    float[:] a_window, float[:] b_window) nogil:
+  {{preamble}}
+  cdef Py_ssize_t awi = 0, bwi = 0, window_size = a_window.shape[0]
+  for i in range(window_size):
+    a_window[i] = a[i,1]
+    b_window[i] = b[i,1]
+
+  for i in range(na-1):
+    aa = a[i,:]
+    ay = aa[1]
+    a_window[awi] = ay
+    awi = (awi+1) % window_size
+    ay -= _minimum(a_window, window_size)
+    for j in range(min_j, nb):
+      bb = b[j-1,:]
+      dx = aa[0] - bb[0]
+      if fabs(dx) <= band_eps:
+        by = bb[1]
+        b_window[bwi] = by
+        bwi = (bwi+1) % window_size
+        by -= _minimum(b_window, window_size)
         lcs_diag += {{mtype}}_score(ay, by, w)
         ssa += ay*ay
         ssb += by*by
@@ -62,4 +103,14 @@ cdef inline float match_score(float ay, float by, float intensity_eps) nogil:
 
 cdef inline float combo_score(float ay, float by, float w) nogil:
   return w * fabs(ay - by) - (1 - w) * (ay * by)
+
+
+cdef inline float _minimum(float[:] buf, Py_ssize_t n) nogil:
+  cdef float x, minval = buf[0]
+  cdef Py_ssize_t i
+  for i in range(1, n):
+    x = buf[i]
+    if x < minval:
+      minval = x
+  return minval
 
