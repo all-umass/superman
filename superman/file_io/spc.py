@@ -2,8 +2,9 @@ import numpy as np
 from datetime import datetime
 
 from construct import (
-    Flag, ULInt32, ULInt16, LFloat32, LFloat64, BitStruct, String, Byte, Struct,
-    Padding, Value, If, OnDemand, IfThenElse, Array, Pointer, Anchor, Terminator
+    Anchor, Array, BitStruct, Byte, FieldError, Flag, If, IfThenElse, LFloat32,
+    LFloat64, OnDemand, Padding, Pointer, SLInt16, SLInt32, String, Struct,
+    ULInt32, Value
 )
 from construct_utils import BitSplitter, FixedSizeCString
 
@@ -47,14 +48,14 @@ VERSIONS = {
 
 TFlags = BitStruct(
     'TFlags',
-    Flag('short_y'),
-    Flag('enable_experiment'),
-    Flag('multiple_ys'),
-    Flag('arbitrary_time'),
-    Flag('ordered_subtimes'),
-    Flag('use_catxt_labels'),
+    Flag('has_xs'),
     Flag('use_subfile_xs'),
-    Flag('has_xs')
+    Flag('use_catxt_labels'),
+    Flag('ordered_subtimes'),
+    Flag('arbitrary_time'),
+    Flag('multiple_ys'),
+    Flag('enable_experiment'),
+    Flag('short_y')
 )
 
 Date = BitSplitter(
@@ -72,10 +73,10 @@ Header = Struct(
     String('version', 1),
     Byte('experiment_type'),
     Byte('exp'),
-    ULInt32('npts'),
+    SLInt32('npts'),
     LFloat64('first'),
     LFloat64('last'),
-    ULInt32('nsub'),
+    SLInt32('nsub'),
     Byte('xtype'),
     Byte('ytype'),
     Byte('ztype'),
@@ -83,19 +84,19 @@ Header = Struct(
     Date,
     Padding(9),
     FixedSizeCString('source', 9),
-    ULInt16('peakpt'),
+    SLInt16('peakpt'),
     Padding(32),
     FixedSizeCString('comment', 130),
     String('catxt', 30),
-    ULInt32('log_offset'),
-    ULInt32('mods'),
+    SLInt32('log_offset'),
+    SLInt32('mods'),
     Byte('procs'),
     Byte('level'),
-    ULInt16('sampin'),
+    SLInt16('sampin'),
     LFloat32('factor'),
     FixedSizeCString('method', 48),
     LFloat32('zinc'),
-    ULInt32('wplanes'),
+    SLInt32('wplanes'),
     LFloat32('winc'),
     Byte('wtype'),
     Padding(187)
@@ -105,12 +106,12 @@ Subfile = Struct(
     'Subfile',
     Byte('flags'),
     Byte('exp'),
-    ULInt16('index'),
+    SLInt16('index'),
     LFloat32('time'),
     LFloat32('next'),
     LFloat32('nois'),
-    ULInt32('npts'),
-    ULInt32('scan'),
+    SLInt32('npts'),
+    SLInt32('scan'),
     LFloat32('wlevel'),
     Padding(4),
     Value('float_y', lambda ctx: ctx.exp == 128),
@@ -119,24 +120,24 @@ Subfile = Struct(
     Value('exponent',
           lambda ctx: ctx.exp if 0 < ctx.exp < 128 else ctx._.Header.exp),
     If(lambda ctx: ctx._.Header.TFlags.use_subfile_xs,
-       OnDemand(Array(lambda ctx: ctx.num_pts, ULInt32('raw_x')))),
+       OnDemand(Array(lambda ctx: ctx.num_pts, SLInt32('raw_x')))),
     IfThenElse('raw_y',
                lambda ctx: ctx.float_y,
                OnDemand(Array(lambda ctx: ctx.num_pts, LFloat32(''))),
-               OnDemand(Array(lambda ctx: ctx.num_pts, ULInt32(''))))
+               OnDemand(Array(lambda ctx: ctx.num_pts, SLInt32(''))))
 )
 
 LogData = Struct(
     'LogData',
     Anchor('log_start'),
-    ULInt32('sizd'),
-    ULInt32('sizm'),
-    ULInt32('text_offset'),
-    ULInt32('bins'),
-    ULInt32('dsks'),
+    SLInt32('sizd'),
+    SLInt32('sizm'),
+    SLInt32('text_offset'),
+    SLInt32('bins'),
+    SLInt32('dsks'),
     Padding(44),
     Pointer(lambda ctx: ctx.log_start + ctx.text_offset,
-            String('content', lambda ctx: ctx.sizd))
+            OnDemand(String('content', lambda ctx: ctx.sizd)))
 )
 
 # The entire file.
@@ -144,11 +145,10 @@ SPCFile = Struct(
     'SPCFile',
     Header,
     If(lambda ctx: ctx.Header.TFlags.has_xs,
-       Array(lambda ctx: ctx.Header.npts, LFloat32('xvals'))),
+       OnDemand(Array(lambda ctx: ctx.Header.npts, LFloat32('xvals')))),
     Array(lambda ctx: ctx.Header.nsub, Subfile),
     If(lambda ctx: ctx.Header.log_offset != 0,
-       Pointer(lambda ctx: ctx.Header.log_offset, LogData)),
-    Terminator
+       Pointer(lambda ctx: ctx.Header.log_offset, LogData))
 )
 
 
@@ -157,20 +157,28 @@ def prettyprint(data):
   h = data.Header
   d = h.Date
   print 'SPC file, version', h.version
-  print 'Date:', datetime(d.year, d.month, d.day, d.hour, d.minute)
+  try:
+    print 'Date:', datetime(d.year, d.month, d.day, d.hour, d.minute)
+  except ValueError:
+    pass  # Sometimes dates are not provided, and are all zeros
   print 'Experiment:', EXPERIMENT_TYPES[h.experiment_type]
   print 'X axis:', X_AXIS_LABELS[h.xtype]
   print 'Y axis:', Y_AXIS_LABELS[h.ytype]
   print 'Z axis:', X_AXIS_LABELS[h.ztype]
   print 'W axis:', X_AXIS_LABELS[h.wtype]
   if data.xvals is not None:
-    assert not h.TFlags.has_xs
-    print 'X:', np.array(data.xvals)
+    assert h.TFlags.has_xs
+    print 'X:', np.array(data.xvals.value)
   else:
     print 'X: linspace(%g, %g, %d)' % (h.first, h.last, h.npts)
   for i, sub in enumerate(data.Subfile):
     print 'Subfile %d:' % (i+1), sub
-  print 'LogData:', data.LogData
+  if data.LogData is not None:
+    print 'LogData:'
+    try:
+      print data.LogData.content.value
+    except FieldError as e:
+      print '    Error reading log:', e
 
 
 def _convert_arrays(data):
@@ -178,8 +186,8 @@ def _convert_arrays(data):
   one for each subpage.'''
   h = data.Header
   if data.xvals is not None:
-    assert not h.TFlags.has_xs
-    x_vals = np.array(data.xvals)
+    assert h.TFlags.has_xs
+    x_vals = np.array(data.xvals.value)
   else:
     x_vals = np.linspace(h.first, h.last, h.npts)
   for sub in data.Subfile:
