@@ -5,17 +5,7 @@ from rruff import write_rruff, parse as parse_rruff
 from spc import parse_traj as parse_spc
 
 
-def parse_spectrum(fh):
-  '''Tries to parse a spectrum from an arbitrary file/filename.'''
-  if not hasattr(fh, 'read'):
-    return parse_spectrum(open(fh))
-  # Try opus first, because it fails fast at a magic number check.
-  for parse_fn in (parse_opus, parse_spc, parse_rruff):
-    try:
-      return parse_fn(fh)
-    except:
-      fh.seek(0)
-  # Nothing worked, let's try a looser parse.
+def parse_loose(fh):
   data = np.atleast_2d(np.loadtxt(fh, dtype=np.float32))
   if data.shape[1] == 2 and data.shape[0] > 2:
     return data
@@ -39,3 +29,30 @@ def parse_asc(fh):
   # convert microns to wavenumbers, reversing the order to keep it ascending
   bands = 10000./bands[::-1]
   return np.column_stack((bands, intensities))
+
+
+PARSERS = {
+    'opus': parse_opus,
+    'spc': parse_spc,
+    'rruff': parse_rruff,
+    'asc': parse_asc,
+    'txt': parse_loose,
+}
+
+
+def parse_spectrum(fh, filetype=None):
+  '''Tries to parse a spectrum from an arbitrary file/filename.'''
+  if not hasattr(fh, 'read'):
+    return parse_spectrum(open(fh), filetype=filetype)
+  # Use the specified parser
+  if filetype is not None:
+    return PARSERS[filetype](fh)
+  # No parser specified, so let's try them all!
+  # Try binary formats first, because they fail fast (magic number checks).
+  for key in ('opus', 'spc', 'rruff', 'asc'):
+    try:
+      return PARSERS[key](fh)
+    except:
+      fh.seek(0)
+  # Nothing worked, let's try a looser parse.
+  return parse_loose(fh)

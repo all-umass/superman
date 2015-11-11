@@ -4,7 +4,7 @@ from os.path import basename
 from matplotlib import pyplot
 from superman.baseline import BL_CLASSES
 from superman.preprocess import preprocess
-from superman.file_io import parse_spectrum
+from superman.file_io import parse_spectrum, PARSERS
 
 
 ap = ArgumentParser()
@@ -13,12 +13,15 @@ ap.add_argument('--no-legend', action='store_false', dest='legend',
 ap.add_argument('--pp', default='normalize:max', help='Preprocess string')
 ap.add_argument('--baseline', default='none', help='Baseline algorithm',
                 choices=BL_CLASSES.keys() + ['none'])
+ap.add_argument('--type', choices=PARSERS,
+                help=('Parser type to use for all files. If not provided, '
+                      'all parsers will be attempted.'))
 ap.add_argument('file', nargs='+', help='Spectrum file(s).')
 args = ap.parse_args()
 
 fig, ax = pyplot.subplots(figsize=(12,6))
 for f in args.file:
-  bands, intensities = parse_spectrum(f).T
+  bands, intensities = parse_spectrum(f, filetype=args.type).T
   if args.baseline != 'none':
     bl_alg = BL_CLASSES[args.baseline]()
     intensities = bl_alg.fit_transform(bands, intensities)
