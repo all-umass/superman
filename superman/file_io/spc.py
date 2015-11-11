@@ -1,5 +1,4 @@
 import numpy as np
-from collections import defaultdict
 from datetime import datetime
 
 from construct import (
@@ -187,8 +186,8 @@ def _convert_arrays(data):
     if sub.raw_x is None:
       x = x_vals
     else:
-      x = np.array(sub.raw_x.value) * 2**(sub.exponent-32)
-    y = np.array(sub.raw_y.value)
+      x = np.array(sub.raw_x.value, dtype=float) * 2**(sub.exponent-32)
+    y = np.array(sub.raw_y.value, dtype=float)
     if not sub.float_y:
       y *= 2**(sub.exponent-32)
     yield x, y
