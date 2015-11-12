@@ -58,7 +58,7 @@ TFlags = BitStruct(
     Flag('short_y')
 )
 
-DateVersionL = BitSplitter(
+DateVersionK = BitSplitter(
     ULInt32('Date'),
     minute=(0, 6),
     hour=(6, 5),
@@ -78,7 +78,7 @@ DateVersionM = Struct(
     Byte('minute')
 )
 
-HeaderVersionL = Struct(
+HeaderVersionK = Struct(
     '',
     Byte('experiment_type'),
     Byte('exp'),
@@ -90,7 +90,7 @@ HeaderVersionL = Struct(
     Byte('ytype'),
     Byte('ztype'),
     Byte('post'),
-    DateVersionL,
+    DateVersionK,
     Padding(9),
     FixedSizeCString('source', 9),
     SLInt16('peakpt'),
@@ -132,14 +132,19 @@ HeaderVersionM = Struct(
     Value('log_offset', lambda ctx: 0)
 )
 
+
+def _wrong_version_error(ctx):
+  raise NotImplementedError('SPC version %s is not implemented' % ctx.version)
+
 Header = Struct(
     'Header',
     TFlags,
     String('version', 1),
     Switch('', lambda ctx: ctx.version, {
-        'L': Embed(HeaderVersionL),
+        'K': Embed(HeaderVersionK),
+        'L': Value('', _wrong_version_error),
         'M': Embed(HeaderVersionM),
-    })
+    }, default=Value('', _wrong_version_error))
 )
 
 Subfile = Struct(
