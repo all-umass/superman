@@ -1,14 +1,9 @@
 import numpy as np
 import os
+from utils import regenerate_cython
+
 # Re-gen the Cython file from the template if needed
-tpl_file = os.path.join(os.path.dirname(__file__), 'fast_lcss.pyx.in')
-pyx_file = tpl_file[:-3]
-if (not os.path.exists(pyx_file) or
-    os.path.getmtime(tpl_file) > os.path.getmtime(pyx_file)):
-  from Cython import Tempita
-  tpl = Tempita.Template.from_filename(tpl_file, encoding='utf-8')
-  with open(pyx_file, 'w') as fh:
-    fh.write(tpl.substitute())
+regenerate_cython(os.path.join(os.path.dirname(__file__), 'fast_lcss.pyx.in'))
 
 import pyximport
 pyximport.install()
