@@ -2,9 +2,9 @@ import numpy as np
 from datetime import datetime
 
 from construct import (
-    Anchor, Array, BitStruct, Byte, FieldError, Flag, If, IfThenElse, LFloat32,
-    LFloat64, OnDemand, Padding, Pointer, SLInt16, SLInt32, String, Struct,
-    ULInt32, Value
+    Anchor, Array, BitStruct, Byte, Embed, FieldError, Flag, If, IfThenElse,
+    LFloat32, LFloat64, OnDemand, Padding, Pointer, SLInt16, SLInt32, String,
+    Struct, Switch, ULInt32, Value
 )
 from construct_utils import BitSplitter, FixedSizeCString
 
@@ -58,7 +58,7 @@ TFlags = BitStruct(
     Flag('short_y')
 )
 
-Date = BitSplitter(
+DateVersionL = BitSplitter(
     ULInt32('Date'),
     minute=(0, 6),
     hour=(6, 5),
@@ -67,10 +67,19 @@ Date = BitSplitter(
     year=(20, 12)
 )
 
-Header = Struct(
-    'Header',
-    TFlags,
-    String('version', 1),
+DateVersionM = Struct(
+    'Date',
+    SLInt16('year1900'),
+    # XXX: guessing that we count years since 1900
+    Value('year', lambda ctx: ctx.year1900 + 1900),
+    Byte('month'),
+    Byte('day'),
+    Byte('hour'),
+    Byte('minute')
+)
+
+HeaderVersionL = Struct(
+    '',
     Byte('experiment_type'),
     Byte('exp'),
     SLInt32('npts'),
@@ -81,13 +90,13 @@ Header = Struct(
     Byte('ytype'),
     Byte('ztype'),
     Byte('post'),
-    Date,
+    DateVersionL,
     Padding(9),
     FixedSizeCString('source', 9),
     SLInt16('peakpt'),
     Padding(32),
     FixedSizeCString('comment', 130),
-    String('catxt', 30),
+    FixedSizeCString('catxt', 30),
     SLInt32('log_offset'),
     SLInt32('mods'),
     Byte('procs'),
@@ -100,6 +109,37 @@ Header = Struct(
     LFloat32('winc'),
     Byte('wtype'),
     Padding(187)
+)
+
+HeaderVersionM = Struct(
+    '',
+    SLInt16('exp'),
+    LFloat32('npts'),
+    LFloat32('first'),
+    LFloat32('last'),
+    Byte('xtype'),
+    Byte('ytype'),
+    DateVersionM,
+    Padding(8),  # res
+    SLInt16('peakpt'),
+    SLInt16('nscans'),
+    Padding(28),  # spare
+    FixedSizeCString('comment', 130),
+    FixedSizeCString('catxt', 30),
+    # only one subfile supported by this version
+    Value('nsub', lambda ctx: 1),
+    # log data is not supported by this version
+    Value('log_offset', lambda ctx: 0)
+)
+
+Header = Struct(
+    'Header',
+    TFlags,
+    String('version', 1),
+    Switch('', lambda ctx: ctx.version, {
+        'L': Embed(HeaderVersionL),
+        'M': Embed(HeaderVersionM),
+    })
 )
 
 Subfile = Struct(
@@ -156,21 +196,25 @@ def prettyprint(data):
   np.set_printoptions(precision=4, suppress=True)
   h = data.Header
   d = h.Date
-  print 'SPC file, version', h.version
+  print 'SPC file, version %s (%s)' % (h.version, VERSIONS[h.version])
   try:
     print 'Date:', datetime(d.year, d.month, d.day, d.hour, d.minute)
   except ValueError:
     pass  # Sometimes dates are not provided, and are all zeros
-  print 'Experiment:', EXPERIMENT_TYPES[h.experiment_type]
+  if hasattr(h, 'experiment_type'):
+    print 'Experiment:', EXPERIMENT_TYPES[h.experiment_type]
   print 'X axis:', X_AXIS_LABELS[h.xtype]
   print 'Y axis:', Y_AXIS_LABELS[h.ytype]
-  print 'Z axis:', X_AXIS_LABELS[h.ztype]
-  print 'W axis:', X_AXIS_LABELS[h.wtype]
+  if hasattr(h, 'ztype'):
+    print 'Z axis:', X_AXIS_LABELS[h.ztype]
+  if hasattr(h, 'wtype'):
+    print 'W axis:', X_AXIS_LABELS[h.wtype]
   if data.xvals is not None:
     assert h.TFlags.has_xs
     print 'X:', np.array(data.xvals.value)
   else:
     print 'X: linspace(%g, %g, %d)' % (h.first, h.last, h.npts)
+  print '%d subfiles' % len(data.Subfile)
   for i, sub in enumerate(data.Subfile):
     print 'Subfile %d:' % (i+1), sub
   if data.LogData is not None:
@@ -189,15 +233,23 @@ def _convert_arrays(data):
     assert h.TFlags.has_xs
     x_vals = np.array(data.xvals.value)
   else:
-    x_vals = np.linspace(h.first, h.last, h.npts)
+    x_vals = np.linspace(h.first, h.last, int(h.npts))
   for sub in data.Subfile:
     if sub.raw_x is None:
       x = x_vals
     else:
       x = np.array(sub.raw_x.value, dtype=float) * 2**(sub.exponent-32)
-    y = np.array(sub.raw_y.value, dtype=float)
-    if not sub.float_y:
-      y *= 2**(sub.exponent-32)
+
+    if sub.float_y:
+      # If it's floating point y data, we're done.
+      y = np.array(sub.raw_y.value, dtype=float)
+    else:
+      yraw = np.array(sub.raw_y.value, dtype=np.int32)
+      if h.version == 'M':
+        # old version needs different raw_y handling
+        # TODO: fix this mess, if possible
+        yraw = yraw.view(np.uint16).byteswap().view(np.uint32).byteswap()
+      y = yraw * 2**(sub.exponent-32)
     yield x, y
 
 
