@@ -22,7 +22,10 @@ def parse_asc(fh):
   # Skip two lines of header (XXX)
   next(fh)
   next(fh)
-  bands,intensities,stdv = np.loadtxt(fh).T
+  data = np.loadtxt(fh)
+  if not data.size or data.ndim != 2 or data.shape[1] != 3:
+    raise ValueError('Invalid file for USGS ASC format')
+  bands,intensities,stdv = data.T
   mask = (stdv >= 0) & (intensities > -1e3)  # exclude bogus negative values
   bands = bands[mask]
   intensities = intensities[mask]
