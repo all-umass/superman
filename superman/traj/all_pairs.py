@@ -43,28 +43,21 @@ def lcss_between(traj1, traj2, metric, param, num_procs=1, verbose=True):
                       symmetric=False)
 
 
-def lcss_search(query, library, metric, param, num_procs=1, use_min=False):
+def lcss_search(query, library, metric, param, num_procs=1, min_window=0):
+  mapper = get_map_fn(num_procs, use_threads=False)
+  use_min = min_window > 1
+  if metric not in ('ms', 'combo'):
+    raise ValueError('Invalid metric: %r' % metric)
   if use_min:
-    a_window = np.zeros(20, dtype=np.float32)
-    b_window = np.zeros(20, dtype=np.float32)
+    a_window = np.zeros(min_window, dtype=np.float32)
+    b_window = np.zeros(min_window, dtype=np.float32)
     traj_pairs = [(query, traj, param, a_window, b_window) for traj in library]
+    map_fn = _ms_score_min if metric == 'ms' else _combo_score_min
   else:
     traj_pairs = [(query, traj, param) for traj in library]
-  mapper = get_map_fn(num_procs, use_threads=False)
-  if metric == 'ms':
-    if use_min:
-      sim = mapper(_ms_score_min, traj_pairs)
-    else:
-      sim = mapper(_ms_score, traj_pairs)
-  elif metric == 'combo':
-    if use_min:
-      sim = mapper(_combo_score_min, traj_pairs)
-    else:
-      sim = mapper(_combo_score, traj_pairs)
-  else:
-    raise ValueError('Invalid metric: %r' % metric)
+    map_fn = _ms_score if 'metric' == 'ms' else _combo_score
   # Note: sim is actually a distance measure
-  return np.array(sim)
+  return np.array(mapper(map_fn, traj_pairs))
 
 
 def _fill_matrix(traj_pairs, idx_pairs, S_shape, metric, num_procs, verbose,

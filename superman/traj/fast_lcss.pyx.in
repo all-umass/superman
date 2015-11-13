@@ -13,29 +13,24 @@ from libc.math cimport fmin, fabs, sqrt
 METRICS = ['match', 'combo']
 }}
 
-{{def preamble}}
-
-  cdef Py_ssize_t na = <Py_ssize_t> a.shape[0]+1
-  cdef Py_ssize_t nb = <Py_ssize_t> b.shape[0]+1
-  cdef Py_ssize_t i, j, min_j = 1
-  cdef float dx, ay, by, lcs_diag = 0, ssa = 0, ssb = 0
-  cdef float[::1] aa, bb
-  cdef float band_eps = optimal_band_eps(a, b)
-
-{{enddef}}
-
 {{for mtype in METRICS}}
 
 cpdef float traj_{{mtype}}(float[:,::1] a, float[:,::1] b, float w) nogil:
-  {{preamble}}
-  for i in range(na-1):
-    aa = a[i,:]
-    for j in range(min_j, nb):
-      bb = b[j-1,:]
-      dx = aa[0] - bb[0]
+  cdef float band_eps = optimal_band_eps(a, b)
+  cdef Py_ssize_t na = a.shape[0], nb = b.shape[0]
+  cdef Py_ssize_t i, j, min_j = 1
+  cdef float dx, ax, ay, bx, by, lcs_diag = 0, ssa = 0, ssb = 0
+  # Abuse known second dimension (2) for speed
+  cdef float* aa = &a[0,0]
+  cdef float* bb = &b[0,0]
+  for i in range(na):
+    ax = aa[2*i]
+    for j in range(min_j, nb+1):
+      bx = bb[2*j-2]
+      dx = ax - bx
       if fabs(dx) <= band_eps:
-        ay = aa[1]
-        by = bb[1]
+        ay = aa[2*i+1]
+        by = bb[2*j-1]
         lcs_diag += {{mtype}}_score(ay, by, w)
         ssa += ay*ay
         ssb += by*by
@@ -47,10 +42,16 @@ cpdef float traj_{{mtype}}(float[:,::1] a, float[:,::1] b, float w) nogil:
         break
   return lcs_diag / sqrt(ssa * ssb)
 
+
 cpdef float traj_{{mtype}}_min(
     float[:,::1] a, float[:,::1] b, float w,
-    float[:] a_window, float[:] b_window) nogil:
-  {{preamble}}
+    float[::1] a_window, float[::1] b_window) nogil:
+  cdef Py_ssize_t na = <Py_ssize_t> a.shape[0]+1
+  cdef Py_ssize_t nb = <Py_ssize_t> b.shape[0]+1
+  cdef Py_ssize_t i, j, min_j = 1
+  cdef float dx, ay, by, lcs_diag = 0, ssa = 0, ssb = 0
+  cdef float[::1] aa, bb
+  cdef float band_eps = optimal_band_eps(a, b)
   cdef Py_ssize_t awi = 0, bwi = 0, window_size = a_window.shape[0]
   for i in range(window_size):
     a_window[i] = a[i,1]
@@ -91,10 +92,12 @@ cpdef float optimal_band_eps(float[:,::1] a, float[:,::1] b) nogil:
 
 cdef float mean_band_difference(float[:,::1] x) nogil:
   cdef float running_sum = 0
-  cdef Py_ssize_t i, n = <Py_ssize_t> x.shape[0] - 1
-  for i in range(n):
-    running_sum += x[i+1,0] - x[i,0]
-  return running_sum / n
+  cdef Py_ssize_t i, n = x.shape[0]
+  # work with the raw pointer for speed, because we know the shape is (n,2)
+  cdef float* xx = &x[0,0]
+  for i in range(n-1):
+    running_sum += xx[2*i+2] - xx[2*i]
+  return running_sum / (n-1)
 
 
 cdef inline float match_score(float ay, float by, float intensity_eps) nogil:
@@ -105,7 +108,7 @@ cdef inline float combo_score(float ay, float by, float w) nogil:
   return w * fabs(ay - by) - (1 - w) * (ay * by)
 
 
-cdef inline float _minimum(float[:] buf, Py_ssize_t n) nogil:
+cdef inline float _minimum(float[::1] buf, Py_ssize_t n) nogil:
   cdef float x, minval = buf[0]
   cdef Py_ssize_t i
   for i in range(1, n):

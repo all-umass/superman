@@ -6,7 +6,8 @@ def make_ext(modname, pyxfilename):
   return Extension(
       name=modname,
       sources=[pyxfilename],
-      extra_compile_args=['-Wno-unused-function'],
+      extra_compile_args=['-Wno-unused-function', '-O3', '-march=native',
+                          '-ffast-math'],
       define_macros=[('NPY_NO_DEPRECATED_API', 'NPY_1_6_API_VERSION')])
 
 
