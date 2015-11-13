@@ -9,7 +9,7 @@ import pyximport
 pyximport.install()
 from fast_lcss import traj_match, traj_combo, traj_match_min, traj_combo_min
 
-from superman.mp import get_mp_pool
+from superman.mp import get_map_fn
 
 
 def lcss_within(traj, metric, param, num_procs=1, verbose=True):
@@ -43,31 +43,28 @@ def lcss_between(traj1, traj2, metric, param, num_procs=1, verbose=True):
                       symmetric=False)
 
 
-def lcss_search(query, library, metric, param, num_procs=1, verbose=True):
-  a_window = np.zeros(20, dtype=np.float32)
-  b_window = np.zeros(20, dtype=np.float32)
-  traj_pairs = [(query, traj, param, a_window, b_window) for traj in library]
-  pool = get_mp_pool(num_procs)
+def lcss_search(query, library, metric, param, num_procs=1, use_min=False):
+  if use_min:
+    a_window = np.zeros(20, dtype=np.float32)
+    b_window = np.zeros(20, dtype=np.float32)
+    traj_pairs = [(query, traj, param, a_window, b_window) for traj in library]
+  else:
+    traj_pairs = [(query, traj, param) for traj in library]
+  mapper = get_map_fn(num_procs, use_threads=False)
   if metric == 'ms':
-    S = pool.map(_ms_score, traj_pairs)
+    if use_min:
+      sim = mapper(_ms_score_min, traj_pairs)
+    else:
+      sim = mapper(_ms_score, traj_pairs)
   elif metric == 'combo':
-    S = pool.map(_combo_score, traj_pairs)
+    if use_min:
+      sim = mapper(_combo_score_min, traj_pairs)
+    else:
+      sim = mapper(_combo_score, traj_pairs)
   else:
     raise ValueError('Invalid metric: %r' % metric)
-  # Note: we _don't_ convert to distances here, or normalize!
-  # TODO: verify that this is doing what we think it is.
-  return np.array(S)
-
-
-# MP.map functions have to be toplevel
-def _ms_score(args):
-  return traj_match_min(*args)
-  #return traj_match(*args[:3])
-
-
-def _combo_score(args):
-  return traj_combo_min(*args)
-  #return traj_combo(*args[:3])
+  # Note: sim is actually a distance measure
+  return np.array(sim)
 
 
 def _fill_matrix(traj_pairs, idx_pairs, S_shape, metric, num_procs, verbose,
@@ -75,11 +72,11 @@ def _fill_matrix(traj_pairs, idx_pairs, S_shape, metric, num_procs, verbose,
   S = np.zeros(S_shape)
   if verbose:
     print "computing pairwise distances:", S_shape
-  pool = get_mp_pool(num_procs)
+  mapper = get_map_fn(num_procs, use_threads=False)
   if metric == 'ms':
-    sim = pool.map(_ms_score, traj_pairs)
+    sim = mapper(_ms_score, traj_pairs)
   elif metric == 'combo':
-    sim = pool.map(_combo_score, traj_pairs)
+    sim = mapper(_combo_score, traj_pairs)
   else:
     raise ValueError('Invalid metric: %r' % metric)
   # insert into similarity matrix
@@ -88,3 +85,14 @@ def _fill_matrix(traj_pairs, idx_pairs, S_shape, metric, num_procs, verbose,
   if symmetric:
     np.fill_diagonal(S, 0)
   return S
+
+
+# MP.map functions have to be toplevel
+def _ms_score(args):
+  return traj_match(*args[:3])
+def _ms_score_min(args):
+  return traj_match_min(*args)
+def _combo_score(args):
+  return traj_combo(*args[:3])
+def _combo_score_min(args):
+  return traj_combo_min(*args)
