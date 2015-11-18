@@ -44,28 +44,30 @@ cpdef float traj_{{mtype}}(float[:,::1] a, float[:,::1] b, float w) nogil:
 cpdef float traj_{{mtype}}_min(
     float[:,::1] a, float[:,::1] b, float w,
     float[::1] a_window, float[::1] b_window) nogil:
-  cdef Py_ssize_t na = <Py_ssize_t> a.shape[0]+1
-  cdef Py_ssize_t nb = <Py_ssize_t> b.shape[0]+1
-  cdef Py_ssize_t i, j, min_j = 1
-  cdef float dx, ay, by, lcs_diag = 0, ssa = 0, ssb = 0
-  cdef float[::1] aa, bb
   cdef float band_eps = optimal_band_eps(a, b)
+  cdef Py_ssize_t na = a.shape[0], nb = b.shape[0]
+  cdef Py_ssize_t i, j, min_j = 1
+  cdef float dx, ax, ay, bx, by, lcs_diag = 0, ssa = 0, ssb = 0
+  # Abuse known second dimension (2) for speed
+  cdef float* aa = &a[0,0]
+  cdef float* bb = &b[0,0]
+
   cdef Py_ssize_t awi = 0, bwi = 0, window_size = a_window.shape[0]
   for i in range(window_size):
     a_window[i] = a[i,1]
     b_window[i] = b[i,1]
 
-  for i in range(na-1):
-    aa = a[i,:]
-    ay = aa[1]
+  for i in range(na):
+    ax = aa[2*i]
+    ay = aa[2*i+1]
     a_window[awi] = ay
     awi = (awi+1) % window_size
     ay -= _minimum(a_window, window_size)
     for j in range(min_j, nb):
-      bb = b[j-1,:]
-      dx = aa[0] - bb[0]
+      bx = bb[2*j-2]
+      dx = ax - bx
       if fabs(dx) <= band_eps:
-        by = bb[1]
+        by = bb[2*j-1]
         b_window[bwi] = by
         bwi = (bwi+1) % window_size
         by -= _minimum(b_window, window_size)
