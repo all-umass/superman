@@ -16,7 +16,7 @@ def score_pdist_row(dana_dist, test_dist):
   return s
 
 
-def pairwise_dists(A, B, metric, num_procs=1):
+def pairwise_dists(A, B, metric, num_procs=1, min_window=0):
   if ':' in metric:
     metric, param = metric.split(':', 1)
 
@@ -30,7 +30,7 @@ def pairwise_dists(A, B, metric, num_procs=1):
     elif metric == 'l1':
       metric, param = 'combo', 1
     return lcss_between(A, B, metric, float(param), num_procs=num_procs,
-                        verbose=False)
+                        min_window=min_window)
 
   if metric == 'ms':
     D = np.zeros((len(A), len(B)))
@@ -50,7 +50,7 @@ def pairwise_dists(A, B, metric, num_procs=1):
   return _sklearn_pdist(A, B, metric=metric)
 
 
-def pairwise_within(A, metric, num_procs=1):
+def pairwise_within(A, metric, num_procs=1, min_window=0):
   if ':' in metric:
     metric, param = metric.split(':', 1)
 
@@ -66,7 +66,7 @@ def pairwise_within(A, metric, num_procs=1):
     elif metric == 'l1':
       metric, param = 'combo', 1
     return lcss_within(A, metric, float(param), num_procs=num_procs,
-                       verbose=False)
+                       min_window=min_window)
 
   if metric == 'ms':
     D = np.zeros((len(A), len(A)))
