@@ -3,6 +3,7 @@ import numpy as np
 from opus import write_opus, parse_traj as parse_opus
 from rruff import write_rruff, parse as parse_rruff
 from spc import parse_traj as parse_spc
+from renishaw import parse_wxd
 
 
 def parse_loose(fh):
@@ -37,6 +38,7 @@ def parse_asc(fh):
 PARSERS = {
     'opus': parse_opus,
     'spc': parse_spc,
+    'wxd': parse_wxd,
     'rruff': parse_rruff,
     'asc': parse_asc,
     'txt': parse_loose,
@@ -52,7 +54,7 @@ def parse_spectrum(fh, filetype=None):
     return PARSERS[filetype](fh)
   # No parser specified, so let's try them all!
   # Try binary formats first, because they fail fast (magic number checks).
-  for key in ('opus', 'spc', 'rruff', 'asc'):
+  for key in ('opus', 'spc', 'wxd', 'rruff', 'asc'):
     try:
       return PARSERS[key](fh)
     except:
