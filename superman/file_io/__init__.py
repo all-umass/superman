@@ -3,7 +3,12 @@ import numpy as np
 from opus import write_opus, parse_traj as parse_opus
 from rruff import write_rruff, parse as parse_rruff
 from spc import parse_traj as parse_spc
-from renishaw import parse_wxd
+try:
+  from renishaw import parse_wxd
+except ImportError:
+  print 'WXD parsing disabled until metakit is installed'
+  def parse_wxd(f):
+    raise NotImplementedError('WXD parsing relies on metakit')
 
 
 def parse_loose(fh):
