@@ -66,6 +66,8 @@ WIPFile = Struct(
 
 def parse_tag(tag, shallow=False):
   data = tag.data
+  if data is None:
+    return tag.name, data
   if tag.type in ('WIP_TAG_INT32', 'WIP_TAG_UINT32', 'WIP_TAG_CHAR'):
     if len(data) == 1:
       data = data[0]
@@ -171,6 +173,7 @@ if __name__ == '__main__':
         walk_tag_tree(WIPFile.parse_stream(fh).root)
       else:
         plot_spectra(fh, legend=args.legend)
-    plt.show()
+    if not args.dump:
+      plt.show()
 
   main()
