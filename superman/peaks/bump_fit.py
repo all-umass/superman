@@ -39,7 +39,8 @@ def fit_single_peak(bands, intensities, loc, fit_kind='lorentzian',
     fit_func = _gaussian
   else:
     raise ValueError('Unsupported fit_kind: %s' % fit_kind)
-  bounds = ([bands.min(), 0, 0], [bands.max(), np.inf, np.inf])
+  # bounded fitter is still a little buggy
+  # bounds = ([bands.min(), 0, 0], [bands.max(), np.inf, np.inf])
   # Choose reasonable starting parameters
   params = (loc, intensities[np.searchsorted(bands, loc)], 1)
   log_fn('Starting %s: params=%s' % (fit_kind, params))
@@ -48,7 +49,7 @@ def fit_single_peak(bands, intensities, loc, fit_kind='lorentzian',
     # Weight the channels based on distance from the approx. peak loc
     w = 1 + (bands - loc)**2
     params, _ = curve_fit(fit_func, bands, intensities,
-                          p0=params, sigma=w, bounds=bounds)
+                          p0=params, sigma=w)  # , bounds=bounds)
     log_fn('%s fit #%d: params=%s' % (fit_kind, i+1, params.tolist()))
     fit_data = fit_func(bands, *params)
     # Check for convergence in peak location
@@ -92,4 +93,3 @@ except TypeError:
     return scipy.optimize.curve_fit(*args, **kwargs)
 else:
   curve_fit = scipy.optimize.curve_fit
-
