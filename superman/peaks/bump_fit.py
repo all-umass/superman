@@ -48,8 +48,8 @@ def fit_single_peak(bands, intensities, loc, fit_kind='lorentzian',
   for i in xrange(max_iter):
     # Weight the channels based on distance from the approx. peak loc
     w = 1 + (bands - loc)**2
-    params, _ = curve_fit(fit_func, bands, intensities,
-                          p0=params, sigma=w)  # , bounds=bounds)
+    params, pcov = curve_fit(fit_func, bands, intensities,
+                             p0=params, sigma=w)  # , bounds=bounds)
     log_fn('%s fit #%d: params=%s' % (fit_kind, i+1, params.tolist()))
     fit_data = fit_func(bands, *params)
     # Check for convergence in peak location
@@ -64,9 +64,11 @@ def fit_single_peak(bands, intensities, loc, fit_kind='lorentzian',
   peak_x, peak_y = bands[mask], fit_data[mask]
   # Calculate peak info
   loc, area, fwhm = map(float, params)
+  loc_std, area_std, fwhm_std = map(float, np.sqrt(np.diag(pcov)))
   peak_data = dict(xmin=float(peak_x[0]), xmax=float(peak_x[-1]),
                    height=float(fit_func(loc, loc, area, fwhm)),
-                   center=float(loc), area=area, fwhm=fwhm)
+                   center=loc, area=area, fwhm=fwhm, center_std=loc_std,
+                   area_std=area_std, fwhm_std=fwhm_std)
   return mask, peak_y, peak_data
 
 
