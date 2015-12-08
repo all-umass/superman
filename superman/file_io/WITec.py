@@ -102,17 +102,58 @@ def taglist2dict(tag):
 def pixel2lambda(pixels, trans):
   '''spectral transform from here:
   horiba.com/us/en/scientific/products/optics-tutorial/wavelength-pixel-position
+  # Wavelength at center of array (nm)
+  lambda_c = trans['LambdaC']
+  # Pixel number at center of array
+  p_c = trans['nC']
+  # Pixel width (mm)
+  p_w = trans['x']
+  # pixel number at wavelength lambda
+  p_lambda = pixels + 1  # numbers start from 1
+  # instrument focal length (mm)
+  f = trans['f']
+  # Inclination of the focal plane measured at lambda_c
+  gamma = trans['Gamma']
+  # Perpendicular distance from grating/focusing mirror to the focal plane (mm)
+  l_h = f * np.cos(gamma)
+  # Angle of diffraction at center wavelength
+  beta_lambda_c = 0 # XXX
+  # Angle from l_h to the normal to the grating
+  beta_h = beta_lambda_c + gamma
+  # Distance from the intercept of the normal to the focal plane to lambda_c
+  h_b_lambda_c = f * np.sin(gamma)
+  # Distance from the intercept of the normal to the focal plane to lambda_n
+  h_b_lambda_n = p_w * (p_lambda - p_c) + h_b_lambda_c
+  # Angle of diffraction at wavelength n
+  beta_lambda_n = beta_h - np.arctan2(h_b_lambda_n / l_h)
+  # delta lambda, wavelength resolution
+  d_lambda = trans['Delta']
+  # diffraction order (integer)
+  k = trans['m']  # ???
+  # groove density (grooves / mm)
+  # n = ???
+  # Rayleigh criterion, a.k.a. resolving power
+  r = lambda_c / d_lambda
+  # included/deviation angle
+  d_v = gamma  # ???
+  # angle of incidence
+  alpha = np.arcsin((r*k)/(2*np.cos(d_v/2))) - (d_v/2)
+  # wavelength at channel n (desired result, in nm)
+  lambda_n = (np.sin(alpha) + np.sin(beta_lambda_n)) * r
+  return lambda_n
   '''
+  # The following is translated from Gwyddion's C pixel_to_lambda function
   half_gamma = trans['Gamma'] / 2.0
   cos_half_gamma = np.cos(half_gamma)
-  foo = trans['LambdaC'] * trans['m'] / trans['d'] / 2.0 / cos_half_gamma
+  foo = trans['LambdaC'] * trans['m'] / trans['d'] / (2*cos_half_gamma)
   alpha = np.arcsin(foo) - half_gamma
   betac = trans['Gamma'] + alpha
   delta = trans['Delta']
+  bh = betac + trans['Gamma']
   hc = trans['f'] * np.sin(delta)
   lh = trans['f'] * np.cos(delta)
-  hi = hc + trans['x'] * (trans['nC'] - pixels)
-  betai = betac + delta - np.arctan2(hi, lh)
+  hbln = trans['x'] * (trans['nC'] - pixels) + hc
+  betai = bh - np.arctan2(hbln, lh)
   return (trans['d'] / trans['m']) * (np.sin(alpha) + np.sin(betai))
 
 
@@ -146,6 +187,8 @@ def extract_spectra(fh):
     xt_id = tdgraph['XTransformationID']
     xtrans = xtrans_map[xt_id]
     xdata = pixel2lambda(xdata, xtrans)
+    # Convert nm to 1/cm ???
+    #xdata = 1. / (xdata * 1e-7)
 
     yield name, np.column_stack((xdata, ydata))
 
