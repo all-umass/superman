@@ -14,4 +14,3 @@ from rubberband import Rubberband
 BL_CLASSES = dict(als=ALS, mario=Mario, dietrich=Dietrich, fabc=FABC,
                   airpls=AirPLS, kk=KajfoszKwiatek, wavelet=Wavelet,
                   median=MedianFilter, polyfit=PolyFit, rubberband=Rubberband)
-

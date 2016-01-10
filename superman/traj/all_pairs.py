@@ -7,9 +7,25 @@ regenerate_cython(os.path.join(os.path.dirname(__file__), 'fast_lcss.pyx.in'))
 
 import pyximport
 pyximport.install()
-from fast_lcss import traj_match, traj_combo, traj_match_min, traj_combo_min
+from fast_lcss import (
+    traj_match, traj_combo,
+    traj_match_min, traj_combo_min,
+    traj_match_full, traj_combo_full
+)
 
 from superman.mp import get_map_fn
+
+
+# TODO: move this and the pyximport stuff to a different file
+def lcss_full(a, b, metric, param):
+  if metric not in ('ms', 'combo'):
+    raise ValueError('Invalid metric: %r' % metric)
+  scores = np.zeros(a.shape[0], dtype=np.float32)
+  if metric == 'ms':
+    traj_match_full(a, b, param, scores)
+  else:
+    traj_combo_full(a, b, param, scores)
+  return scores
 
 
 def lcss_within(traj, metric, param, num_procs=1, min_window=0):
