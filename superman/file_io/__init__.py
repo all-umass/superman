@@ -7,17 +7,24 @@ try:
   from renishaw import parse_wxd
 except ImportError:
   print 'WXD parsing disabled until metakit is installed'
+
   def parse_wxd(f):
     raise NotImplementedError('WXD parsing relies on metakit')
 
 
 def parse_loose(fh):
-  data = np.atleast_2d(np.loadtxt(fh, dtype=np.float32))
+  try:
+    data = np.loadtxt(fh, dtype=np.float32)
+  except ValueError:
+    # default parse failed, try parsing as CSV
+    fh.seek(0)
+    data = np.loadtxt(fh, dtype=np.float32, delimiter=',')
+  data = np.atleast_2d(data)
   if data.shape[1] == 2 and data.shape[0] > 2:
     return data
   if data.shape[0] == 2 and data.shape[1] > 2:
     return data.T
-  raise ValueError('Invalid shape for spectrum data: %s' % data.shape)
+  raise ValueError('Invalid shape for spectrum data: %s' % (data.shape,))
 
 
 def parse_asc(fh):
