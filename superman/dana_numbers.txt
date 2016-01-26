@@ -4272,6 +4272,7 @@
 71.04.01.02 Cookeite
 71.04.01.03 Sudoite
 71.04.01.04 Clinochlore
+71.04.01.04 Ripidolite
 71.04.01.05 Nimite
 71.04.01.06 Baileychlore
 71.04.01.07 Chamosite
