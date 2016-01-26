@@ -3,6 +3,7 @@ import numpy as np
 from opus import write_opus, parse_traj as parse_opus
 from rruff import write_rruff, parse as parse_rruff
 from spc import parse_traj as parse_spc
+from andor import parse_sif
 try:
   from renishaw import parse_wxd
 except ImportError:
@@ -51,6 +52,7 @@ PARSERS = {
     'opus': parse_opus,
     'spc': parse_spc,
     'wxd': parse_wxd,
+    'sif': parse_sif,
     'rruff': parse_rruff,
     'asc': parse_asc,
     'txt': parse_loose,
@@ -66,10 +68,21 @@ def parse_spectrum(fh, filetype=None):
     return PARSERS[filetype](fh)
   # No parser specified, so let's try them all!
   # Try binary formats first, because they fail fast (magic number checks).
-  for key in ('opus', 'spc', 'wxd', 'rruff', 'asc'):
+  for key in ('opus', 'spc', 'wxd', 'sif', 'rruff', 'asc'):
     try:
       return PARSERS[key](fh)
     except:
       fh.seek(0)
   # Nothing worked, let's try a looser parse.
   return parse_loose(fh)
+
+
+def write_spectrum(filename, traj, filetype='txt', comments=''):
+  '''Writes a spectrum to file with the specified filetype.
+  Filetype choices are: ('txt', 'rruff', 'opus')
+  '''
+  if filetype in ('rruff', 'txt'):
+    return write_rruff(filename, traj, comments)
+  if filetype == 'opus':
+    return write_opus(filename, traj, comments)
+  raise ValueError('Unknown filetype for writing: %r' % filetype)
