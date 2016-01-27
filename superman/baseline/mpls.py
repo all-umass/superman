@@ -33,7 +33,7 @@ def mpls_baseline(intensities, smoothness_param=100, deriv_order=1,
 
 
 class MPLS(Baseline):
-  def __init__(self, smoothness_param=1e6, deriv_order=1, window_length=100):
+  def __init__(self, smoothness_param=100, deriv_order=1, window_length=100):
     self.smoothness_ = smoothness_param
     self.window_ = window_length
     self.order_ = deriv_order
