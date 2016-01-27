@@ -18,7 +18,8 @@ def mpls_baseline(intensities, smoothness_param=100, deriv_order=1,
   flat = (np.diff(Xbg) != 0).astype(np.int8)
   run_idx, = np.where(np.diff(flat))
   # local minimums between flat runs
-  bounds = run_idx[1:-1].reshape((-1, 2)) + (1, 2)
+  bounds = run_idx[1:-1] if len(run_idx) % 2 == 0 else run_idx[1:]
+  bounds = bounds.reshape((-1, 2)) + (1, 2)
   min_idxs = bounds[:,0] + np.array([np.argmin(Xbg[s:t]) for s,t in bounds])
   # create the weight vector by setting 1 at each local min
   w = np.zeros_like(intensities)
