@@ -17,15 +17,12 @@ def mpls_baseline(intensities, smoothness_param=100, deriv_order=1,
   # find runs of equal values in Xbg
   flat = (np.diff(Xbg) != 0).astype(np.int8)
   run_idx, = np.where(np.diff(flat))
-  # set local minimums between flat runs to 1
+  # local minimums between flat runs
+  bounds = run_idx[1:-1].reshape((-1, 2)) + (1, 2)
+  min_idxs = bounds[:,0] + np.array([np.argmin(Xbg[s:t]) for s,t in bounds])
+  # create the weight vector by setting 1 at each local min
   w = np.zeros_like(intensities)
-  for i in xrange(1, len(run_idx)-1, 2):
-    s = run_idx[i] + 2
-    t = run_idx[i+1] + 1
-    if t > s:
-      w[s+np.argmin(Xbg[s:t])] = 1
-    else:
-      w[s] = 1
+  w[min_idxs] = 1
   # make sure we stick to the ends
   w[0] = 5
   w[-1] = 5
