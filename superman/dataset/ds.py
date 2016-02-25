@@ -171,13 +171,13 @@ class TrajDataset(Dataset):
     return self._transform_traj(self.traj[key])
 
   def get_trajectory_by_index(self, idx):
-    return self.get_trajectory(self.pkey.index2key[idx])
+    return self.get_trajectory(self.pkey.index2key(idx))
 
   def get_trajectories(self, keys):
     return [self._transform_traj(self.traj[key]) for key in keys]
 
   def get_trajectories_by_index(self, indices):
-    return self.get_trajectories(self.pkey.index2key[indices])
+    return self.get_trajectories(self.pkey.index2key(indices))
 
   def _transform_traj(self, traj):
     if self.transformations['chan_mask']:
@@ -189,9 +189,11 @@ class TrajDataset(Dataset):
     # crop
     lb, ub = self.transformations['crop']
     if lb > traj[0,0]:
-      traj = traj[np.searchsorted(traj[:,0]):]
+      idx = np.searchsorted(traj[:,0], lb)
+      traj = traj[idx:]
     if ub < traj[-1,0]:
-      traj = traj[:np.searchsorted(traj[:,0])]
+      idx = np.searchsorted(traj[:,0], ub)
+      traj = traj[:idx]
 
     # baseline removal
     bl_obj = self.transformations['blr_obj']
