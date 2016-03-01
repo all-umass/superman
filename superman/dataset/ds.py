@@ -8,67 +8,68 @@ from metadata import is_metadata, PrimaryKeyMetadata
 __all__ = ['VectorDataset', 'TrajDataset']
 
 
-class Dataset(object):
-  def __init__(self, name, spec_kind):
-    self.name = name
-    self.kind = spec_kind
-    self.pkey = None  # primary key metadata, optional
-    self.metadata = dict()
+class DatasetView(object):
+  def __init__(self, ds, mask=Ellipsis, pp='', blr_obj=None, chan_mask=False,
+               blr_segmented=False, crop=(-np.inf, np.inf), nan_gap=None):
+    self.ds = ds
+    self.mask = mask
     # lazy transformation steps, which get applied to on-demand trajectories
-    self.transformations = {
-        'pp': '',
-        'blr_obj': None,
-        'blr_segmented': False,
-        'crop': (-np.inf, np.inf),
-        'nan_gap': None,
-        'chan_mask': False,
-    }
-
-  def set_metadata(self, metadata_dict):
-    self.metadata = metadata_dict
-    # do a little metadata validation
-    for key, m in self.metadata.iteritems():
-      if not is_metadata(m):
-        raise ValueError('%r is not a valid Metadata' % key)
-      if self.pkey is not None and isinstance(m, PrimaryKeyMetadata):
-        raise ValueError("%s can't have >1 primary key: %s" % (self, key))
-
-  def filter_metadata(self, filter_conditions):
-    mask = np.ones(self.num_spectra(), dtype=bool)
-    for key, cond in filter_conditions.iteritems():
-      if key == 'pkey':
-        mask &= self.pkey.filter(cond)
-      else:
-        mask &= self.metadata[key].filter(cond)
-    return mask
-
-  def find_metadata(self, meta_key):
-    # hack: index into compositions with $-joined keys
-    if '$' in meta_key:
-      key, subkey = meta_key.split('$', 1)
-      meta = self.metadata[key].comps[subkey]
-      label = '%s: %s' % (self.metadata[key].display_name(key),
-                          meta.display_name(subkey))
-    else:
-      meta = self.metadata[meta_key]
-      label = meta.display_name(meta_key)
-    return meta, label
+    self.transformations = dict(pp=pp, blr_obj=blr_obj,
+                                blr_segmented=blr_segmented, crop=crop,
+                                nan_gap=nan_gap, chan_mask=chan_mask)
 
   def __str__(self):
-    return '%s [%s]' % (self.name, self.kind)
+    return '<DatasetView of "%s": %r>' % (self.ds, self.transformations)
 
-  def update_transforms(self, **kwargs):
-    extra_keys = set(kwargs) - set(self.transformations)
-    if extra_keys:
-      raise ValueError('Unknown transformation(s): %s' % ', '.join(extra_keys))
-    self.transformations.update(kwargs)
+  def get_trajectories(self, return_keys=False):
+    # hack for speed, kinda lame
+    if hasattr(self.ds, 'intensities'):
+      traj = self.ds.get_trajectories_by_index(self.mask, self.transformations)
+      if return_keys:
+        return traj, self.ds.pkey.index2key(self.mask)
+      return traj
+
+    keys = self.ds.pkey.index2key(self.mask)
+    traj = self.ds.get_trajectories(keys, self.transformations)
+    if return_keys:
+      return traj, keys
+    return traj
+
+  def get_metadata(self, meta_key):
+    meta, label = self.ds.find_metadata(meta_key)
+    data = meta.get_array(self.mask)
+    return data, label
+
+  def compute_line(self, bounds):
+    assert len(bounds) in (2, 4)
+
+    # hack for speed, kinda lame
+    if hasattr(self.ds, 'intensities'):
+      bands, ints = self.ds._transform_vector(self.ds.bands,
+                                              self.ds.intensities[self.mask,:],
+                                              self.transformations)
+      indices = np.searchsorted(bands, bounds)
+      line = ints[:, indices[0]:indices[1]].max(axis=1)
+      if len(bounds) == 4:
+        line /= ints[:, indices[2]:indices[3]].max(axis=1)
+      return line
+
+    keys = self.ds.pkey.index2key(self.mask)
+    traj = self.ds.get_trajectories(keys, self.transformations)
+    line = np.zeros(len(traj))
+    for i, t in enumerate(traj):
+      indices = np.searchsorted(t[:,0], bounds)
+      line[i] = t[indices[0]:indices[1], 1].max()
+      if len(bounds) == 4:
+        line[i] /= t[indices[2]:indices[3], 1].max()
+    return line
 
   def whole_spectrum_search(self, query, num_endmembers=1, num_results=10,
-                            pp='', metric='combo', param=0, num_procs=5,
-                            min_window=0, score_pct=1, full_output=False):
+                            metric='combo', param=0, num_procs=5,
+                            min_window=0, score_pct=1):
     # neurotic error checking
-    if self.pkey is None:
-      raise ValueError('%s has no primary key, cannot search.', self)
+    if self.ds.pkey is None:
+      raise ValueError('%s has no primary key, cannot search.' % self.ds)
     if not (0 < num_endmembers < 10):
       raise ValueError('Invalid number of mixture components: %d' %
                        num_endmembers)
@@ -78,36 +79,23 @@ class Dataset(object):
       raise ValueError('Invalid min window size: %d' % min_window)
     if not (0 < score_pct < 100):
       raise ValueError('Invalid score percentile threshold: %d' % score_pct)
+    if query[0,0] > query[1,0]:
+      raise ValueError('Query spectrum must have increasing bands')
+    if abs(1 - query[:,1].max()) > 0.001:
+      raise ValueError('Query spectrum must be max-normalized')
 
     # prepare the query
-    if query[0,0] > query[1,0]:
-      query = np.flipud(query)
-    if abs(1 - query[:,1].max()) > 0.001:
-      # WSM needs max-normalization, so we force it.
-      # logging.warning('Applying max-normalization to query before search')
-      max_norm = 'normalize:max'
-      if full_output:
-        pp_steps = filter(None, pp.split(','))
-        if not pp_steps or pp_steps[-1] != max_norm:
-          pp_steps.append(max_norm)
-        pp = ','.join(pp_steps)
-      query[:,1] = preprocess(query[:,1:2].T, max_norm).ravel()
     query = query.astype(np.float32, order='C', copy=True)
 
     # prepare the search library
-    names = np.array(self.pkey.keys, copy=False)
-    library = [t.astype(np.float32, order='C')
-               for t in self.get_trajectories(names)]
-    library = preprocess(library, pp)
+    library, names = self.get_trajectories(return_keys=True)
+    library = [t.astype(np.float32, order='C') for t in library]
 
     # run the search
     num_sub_results = int(np.ceil(num_results ** (1./num_endmembers)))
     res = _cs_helper(query, library, names, num_endmembers, num_sub_results,
                      metric, param, num_procs, min_window, score_pct)
     top_sim, top_names = zip(*sorted(res, reverse=True)[:num_results])
-
-    if full_output:
-      return top_names, top_sim, pp, query
     return top_names, top_sim
 
 
@@ -145,6 +133,50 @@ def _remove_spectrum(a, mask):
   return sub
 
 
+class Dataset(object):
+  def __init__(self, name, spec_kind):
+    self.name = name
+    self.kind = spec_kind
+    self.pkey = None  # primary key metadata, optional
+    self.metadata = dict()
+
+  def set_metadata(self, metadata_dict):
+    self.metadata = metadata_dict
+    # do a little metadata validation
+    for key, m in self.metadata.iteritems():
+      if not is_metadata(m):
+        raise ValueError('%r is not a valid Metadata' % key)
+      if self.pkey is not None and isinstance(m, PrimaryKeyMetadata):
+        raise ValueError("%s can't have >1 primary key: %s" % (self, key))
+
+  def filter_metadata(self, filter_conditions):
+    mask = np.ones(self.num_spectra(), dtype=bool)
+    for key, cond in filter_conditions.iteritems():
+      if key == 'pkey':
+        mask &= self.pkey.filter(cond)
+      else:
+        mask &= self.metadata[key].filter(cond)
+    return mask
+
+  def find_metadata(self, meta_key):
+    # hack: index into compositions with $-joined keys
+    if '$' in meta_key:
+      key, subkey = meta_key.split('$', 1)
+      meta = self.metadata[key].comps[subkey]
+      label = '%s: %s' % (self.metadata[key].display_name(key),
+                          meta.display_name(subkey))
+    else:
+      meta = self.metadata[meta_key]
+      label = meta.display_name(meta_key)
+    return meta, label
+
+  def view(self, **kwargs):
+    return DatasetView(self, **kwargs)
+
+  def __str__(self):
+    return '%s [%s]' % (self.name, self.kind)
+
+
 class TrajDataset(Dataset):
   def set_data(self, keys, traj_map, **metadata):
     self.set_metadata(metadata)
@@ -167,27 +199,31 @@ class TrajDataset(Dataset):
   def num_dimensions(self):
     return None
 
-  def get_trajectory(self, key):
-    return self._transform_traj(self.traj[key])
+  def get_trajectory(self, key, transformations=None):
+    return self._transform_traj(self.traj[key], transformations)
 
-  def get_trajectory_by_index(self, idx):
-    return self.get_trajectory(self.pkey.index2key(idx))
+  def get_trajectory_by_index(self, idx, transformations=None):
+    return self.get_trajectory(self.pkey.index2key(idx), transformations)
 
-  def get_trajectories(self, keys):
-    return [self._transform_traj(self.traj[key]) for key in keys]
+  def get_trajectories(self, keys, transformations=None):
+    return [self._transform_traj(self.traj[key], transformations)
+            for key in keys]
 
-  def get_trajectories_by_index(self, indices):
-    return self.get_trajectories(self.pkey.index2key(indices))
+  def get_trajectories_by_index(self, indices, transformations=None):
+    return self.get_trajectories(self.pkey.index2key(indices), transformations)
 
-  def _transform_traj(self, traj):
-    if self.transformations['chan_mask']:
+  def _transform_traj(self, traj, transformations):
+    if transformations is None:
+      return traj
+
+    if transformations['chan_mask']:
       raise ValueError('chan_mask transform is not applicable to TrajDataset')
 
     tmp = np.asarray(traj)
     copy, traj = tmp is traj, tmp
 
     # crop
-    lb, ub = self.transformations['crop']
+    lb, ub = transformations['crop']
     if lb > traj[0,0]:
       idx = np.searchsorted(traj[:,0], lb)
       traj = traj[idx:]
@@ -196,22 +232,22 @@ class TrajDataset(Dataset):
       traj = traj[:idx]
 
     # baseline removal
-    bl_obj = self.transformations['blr_obj']
+    bl_obj = transformations['blr_obj']
     if bl_obj is not None:
       traj = np.array(traj, copy=copy)
-      seg = self.transformations['blr_segmented']
+      seg = transformations['blr_segmented']
       traj[:,1] = bl_obj.fit_transform(*traj.T, segment=seg)
       copy = False
 
     # preprocessing
-    pp = self.transformations['pp']
+    pp = transformations['pp']
     if pp:
       traj = np.array(traj, copy=copy)
       traj[:,1] = preprocess(traj[:,1:2].T, pp).ravel()
       copy = False
 
     # insert NaNs
-    nan_gap = self.transformations['nan_gap']
+    nan_gap = transformations['nan_gap']
     if nan_gap is not None:
       gap_inds, = np.where(np.diff(traj[:,0]) > nan_gap)
       traj = np.array(traj, copy=copy)
@@ -241,31 +277,38 @@ class VectorDataset(Dataset):
   def num_dimensions(self):
     return len(self.bands)
 
-  def get_trajectory_by_index(self, idx):
-    x, y = self._transform_vector(self.bands, self.intensities[idx:idx+1,:])
+  def get_trajectory_by_index(self, idx, transformations=None):
+    x, y = self._transform_vector(self.bands, self.intensities[idx:idx+1,:],
+                                  transformations)
     return np.column_stack((x, y.ravel()))
 
-  def get_trajectories_by_index(self, indices):
-    x, y = self._transform_vector(self.bands, self.intensities[indices,:])
+  def get_trajectories_by_index(self, indices, transformations=None):
+    x, y = self._transform_vector(self.bands, self.intensities[indices,:],
+                                  transformations)
     return [np.column_stack((x, yy)) for yy in y]
 
-  def get_trajectory(self, key):
+  def get_trajectory(self, key, transformations=None):
     if self.pkey is None:
       raise NotImplementedError('No primary key provided')
-    return self.get_trajectory_by_index(self.pkey.key2index(key))
+    return self.get_trajectory_by_index(self.pkey.key2index(key),
+                                        transformations)
 
-  def get_trajectories(self, keys):
+  def get_trajectories(self, keys, transformations=None):
     if self.pkey is None:
       raise NotImplementedError('No primary key provided')
-    return [self.get_trajectory_by_index(self.pkey.key2index(key))
+    return [self.get_trajectory_by_index(self.pkey.key2index(key),
+                                         transformations)
             for key in keys]
 
-  def _transform_vector(self, bands, ints):
+  def _transform_vector(self, bands, ints, transformations):
+    if transformations is None:
+      return bands, ints
+
     tmp = np.asarray(ints)
     copy, ints = tmp is ints, tmp
 
     # mask
-    if self.transformations['chan_mask']:
+    if transformations['chan_mask']:
       if self.kind != 'LIBS':
         raise ValueError('chan_mask transform only applicable to LIBS data')
       bands = bands[ALAMOS_MASK]
@@ -273,30 +316,30 @@ class VectorDataset(Dataset):
       copy = False
 
     # crop
-    lb, ub = self.transformations['crop']
+    lb, ub = transformations['crop']
     if lb > bands[0]:
       idx = np.searchsorted(bands, lb)
-      bands, ints = bands[idx:], ints[idx:]
+      bands, ints = bands[idx:], ints[:, idx:]
     if ub < bands[-1]:
       idx = np.searchsorted(bands, ub)
-      bands, ints = bands[:idx], ints[:idx]
+      bands, ints = bands[:idx], ints[:, :idx]
 
     # baseline removal
-    bl_obj = self.transformations['blr_obj']
+    bl_obj = transformations['blr_obj']
     if bl_obj is not None:
       ints = np.array(ints, copy=copy)
-      seg = self.transformations['blr_segmented']
+      seg = transformations['blr_segmented']
       ints = bl_obj.fit_transform(bands, ints, segment=seg)
       copy = False
 
     # preprocessing
-    pp = self.transformations['pp']
+    pp = transformations['pp']
     if pp:
       ints = preprocess(ints, pp)
       copy = False
 
     # insert NaNs
-    nan_gap = self.transformations['nan_gap']
+    nan_gap = transformations['nan_gap']
     if nan_gap is not None:
       gap_inds, = np.where(np.diff(bands) > nan_gap)
       ints = np.array(ints, copy=copy)
