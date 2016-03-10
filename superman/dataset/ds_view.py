@@ -31,6 +31,15 @@ class DatasetView(object):
       return traj, keys
     return traj
 
+  def get_data(self, return_keys=False):
+    if not hasattr(self.ds, 'intensities'):
+      return self.get_trajectories(return_keys=return_keys)
+    # just return the intensities matrix
+    data = self.ds.intensities[self.mask]
+    if return_keys:
+      return data, self.ds.pkey.index2key(self.mask)
+    return data
+
   def get_metadata(self, meta_key):
     meta, label = self.ds.find_metadata(meta_key)
     data = meta.get_array(self.mask)

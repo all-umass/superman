@@ -1,10 +1,9 @@
+from __future__ import absolute_import
 import numpy as np
 import scipy.signal
 import scipy.sparse
 from sklearn.preprocessing import normalize
 from sklearn.decomposition import PCA
-
-import options
 
 
 def preprocess(spectra, pp_string):
@@ -151,31 +150,29 @@ def _smooth(S, window, order):
   return np.maximum(S, 1e-10)
 
 
-def debug(spectra, labels, opts):
-  if len(opts.pp) == 2:
-    spectra = preprocess(spectra, opts.pp[0])
-  PP = preprocess(spectra, opts.pp[-1])
-  from matplotlib import pyplot
-  ax1 = pyplot.subplot(2, 1, 1)
-  ax2 = pyplot.subplot(2, 1, 2, sharex=ax1)
+def debug(before, after, legend=True):
+  from matplotlib import pyplot as plt
+  fig, (ax1, ax2) = plt.subplots(nrows=2, sharex=True)
   lines = []
-  bands = np.arange(85, 1800)  # XXX: Assumption! It's just for plotting though
-  for i,spectrum in enumerate(spectra):
-    line, = ax1.plot(bands, spectrum)
-    line_color = pyplot.getp(line, 'color')
-    ax2.plot(bands, PP[i], line_color+'-')
+  traj1, labels = before.get_trajectories(return_keys=True)
+  traj2 = after.get_trajectories()
+  for t1, t2 in zip(traj1, traj2):
+    line, = ax1.plot(*t1.T)
+    line_color = plt.getp(line, 'color')
+    ax2.plot(*t2.T, color=line_color)
     lines.append(line)
-  if opts.legend:
-    fig = pyplot.gcf()
+  if legend:
     fig.legend(lines, labels, 'right')
   ax1.yaxis.set_ticks([])
   ax2.yaxis.set_ticks([])
-  pyplot.xlabel('Wavenumber (1/cm)')
-  pyplot.tight_layout()
-  pyplot.show()
+  plt.xlabel('Wavenumber (1/cm)')
+  plt.show()
 
 
 def main():
+  from . import options
+  from .dataset import load_dataset, dataset_views
+
   op = options.setup_common_opts()
   op.add_argument('--debug', type=str, nargs='+', default=['Trolleite'],
                   help='Species name(s) to show before/after. %(default)s')
@@ -183,16 +180,14 @@ def main():
   options.add_preprocess_opts(op)
   opts = options.parse_opts(op, lasers=False)
   options.validate_preprocess_opts(op, opts)
-  if len(opts.pp) not in (1, 2):
+  if len(opts.pp) == 1 and opts.pp[0] != '':
+    opts.pp.insert(0, '')
+  if len(opts.pp) != 2:
     op.error('Must provide 1 or 2 --pp sequences for before/after plot')
 
-  data_file = options.find_data_file(opts)
-  data = np.load(data_file)
-  names = data['names']
-  mask = np.in1d([n.split('-',1)[0] for n in names], opts.debug)
-  spectra = data['data'][mask]
-  labels = names[mask]
-  debug(spectra, labels, opts)
+  ds = load_dataset(opts.data, resample=opts.resample)
+  before, after = list(dataset_views(ds, opts, minerals=opts.debug))
+  debug(before, after, legend=opts.legend)
 
 
 if __name__ == '__main__':

@@ -1,36 +1,77 @@
-import options
-from classifiers import (
-    gauss_test, neural_net_test, knn_cross_fold, knn_test, decision_tree_test)
-from classifiers.utils import test_train_split, print_results, print_cross_fold
-from utils import prepare_data
+from __future__ import absolute_import
+import numpy as np
 
-CLASSIFIERS = {
-    'knn': knn_test,
-    'gauss': gauss_test,
-    'dtree': decision_tree_test,
-    'nnet': neural_net_test
-}
+from . import options
+from .classifiers import knn_test, CLASSIFIERS
+from .classifiers.utils import (
+    test_train_mask, test_train_split, print_results, print_cross_fold)
+from .dataset import load_dataset, dataset_views
 
 
-def _classify_oneshot(X, Y, label_map, names, opts):
+def _classify_oneshot(ds, opts):
   test_fn = CLASSIFIERS[opts.clf]
   if opts.tsv:
     if opts.dana:
       print '# Title\tTime\tRank\tClass\tType\tGroup\tSpecies\tTotal'
     else:
       print '# Title\tTime\tRank\tScore\tTotal'
+  label_meta, _ = ds.find_metadata('minerals')
+  label_map = label_meta.labels
+  example_view = next(dataset_views(ds, opts))
+  Y = label_map[example_view.mask]
   for _ in xrange(opts.trials):
-    Xtrain, Ytrain, Xtest, Ytest, Ntest = test_train_split(
-        X, Y, opts.min_samples, names=names)
-    for cr in test_fn(Xtrain, Ytrain, Xtest, opts):
-      print_results(Ytest, label_map, Ntest, cr, opts)
+    train_mask, test_mask = test_train_mask(Y, label_map, opts.min_samples)
+    for ds_view in dataset_views(ds, opts):
+      pp = ds_view.transformations['pp']
+      X, names = ds_view.get_data(return_keys=True)
+      Xtrain, Ytrain, Xtest, Ytest, Ntest = \
+          test_train_split(X, Y, train_mask, test_mask, names)
+      for cr in test_fn(Xtrain, Ytrain, Xtest, pp, opts):
+        print_results(Ytest, label_map, Ntest, cr, opts)
 
 
-def _classify_crossfold(X, Y, label_map, names, opts):
+def _classify_crossfold(ds, opts):
   assert opts.clf == 'knn', ('Cross-Fold is NYI for --clf %s' % opts.clf)
+  num_tests = np.product(map(len, (opts.metric,opts.pp,opts.k,opts.weights)))
+
+  label_meta, _ = ds.find_metadata('minerals')
+  label_map = label_meta.labels
+  example_view = next(dataset_views(ds, opts))
+  Y = label_map[example_view.mask]
+
+  sum_scores = np.empty((num_tests, len(opts.rank)))
+  sumsq_scores = np.empty_like(sum_scores)
+  per_time = np.empty_like(sum_scores)
+  titles = [None] * num_tests
   for _ in xrange(opts.trials):
-    mean, stdv, total, time, titles = knn_cross_fold(X, Y, label_map, opts)
-    print_cross_fold(mean, stdv, total, time, titles, opts.rank, opts.folds)
+    sum_scores[:,:] = 0
+    sumsq_scores[:,:] = 0
+    per_time[:,:] = 0
+    for _ in xrange(opts.folds):
+      train_mask, test_mask = test_train_mask(Y, label_map, opts.min_samples)
+      i = 0
+      for ds_view in dataset_views(ds, opts):
+        pp = ds_view.transformations['pp']
+        X = ds_view.get_data()
+        Xtrain, Ytrain, Xtest, Ytest = test_train_split(X, Y, train_mask,
+                                                        test_mask)
+        for result in knn_test(Xtrain, Ytrain, Xtest, pp, opts):
+          titles[i] = result.title
+          for j, r in enumerate(opts.rank):
+            matches = np.any(Ytest[:,None] == result.ranking[:,:r], axis=1)
+            s = np.count_nonzero(matches)
+            sum_scores[i,j] += s
+            sumsq_scores[i,j] += s * s
+            per_time[i,j] += result.elapsed
+          i += 1
+    # aggregate fold results
+    n = float(opts.folds)
+    mean = sum_scores / n
+    stdv = np.sqrt(n*sumsq_scores - sum_scores**2) / n
+    per_time /= n
+
+    print_cross_fold(mean, stdv, len(Ytest), per_time, titles,
+                     opts.rank, opts.folds)
 
 
 def main():
@@ -61,11 +102,15 @@ def main():
     op.error('Choose one of --tsv or --show-errors, but not both')
   if opts.folds > 1 and opts.dana:
     op.error('Dana output not supported with >1 fold')
+  if opts.clf != 'knn' and not opts.resample:
+    op.error('Only knn supports trajectories, pass --resample to use others.')
 
-  data_file = options.find_data_file(opts, resampled=(not opts.traj))
-  classify = _classify_oneshot if opts.folds == 1 else _classify_crossfold
-  for X, Y, label_map, names in prepare_data(data_file, opts):
-    classify(X, Y, label_map, names, opts)
+  ds = load_dataset(opts.data, resample=opts.resample)
+  if opts.folds == 1:
+    _classify_oneshot(ds, opts)
+  else:
+    _classify_crossfold(ds, opts)
+
 
 if __name__ == '__main__':
   main()

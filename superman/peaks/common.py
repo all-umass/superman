@@ -15,8 +15,6 @@ class PeakFinder(object):
        Returns a list of peak location arrays
     '''
     # Fallback implementation based on _fit_one()
-    if intensities.ndim == 1:
-      return self._fit_one(bands, intensities)
     return [self._fit_one(bands, y) for y in intensities]
 
   def param_ranges(self):
@@ -26,7 +24,10 @@ class PeakFinder(object):
 
   def fit(self, bands, intensities):
     '''Finds peaks in each spectrum and stores them as self.peak_locs'''
-    self.peak_locs = self._fit_many(bands, intensities)
+    if intensities.ndim == 1:
+      self.peak_locs = self._fit_one(bands, intensities)
+    else:
+      self.peak_locs = self._fit_many(bands, intensities)
     return self
 
 

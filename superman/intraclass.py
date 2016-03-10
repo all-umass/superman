@@ -1,14 +1,13 @@
+from __future__ import absolute_import, print_function
 import numpy as np
 from matplotlib import pyplot
 from scipy.stats import gaussian_kde as gkde
-
 from viztricks import violinplot, axes_grid, plot, imagesc
 
-from utils import prepare_data
-from preprocess import preprocess
-from pairwise_dists import pairwise_within, score_pdist
-import options
-import dana
+from . import dana
+from . import options
+from .dataset import load_dataset, dataset_views
+from .pairwise_dists import pairwise_within, score_pdist
 
 
 def _show_conf(D, names, plot_title):
@@ -29,14 +28,14 @@ def _show_conf(D, names, plot_title):
   pyplot.gca().format_coord = format_coord
 
 
-def show_confusion(X, labels, names, minerals, dana_nums, metrics, pp, opts):
+def show_confusion(X, labels, names, minerals, dana_nums, pp, opts):
   # show dana classes in the ground truth plot
   _show_conf(_build_mask(dana_nums[labels]), names, 'truth')
-  for m in metrics:
+  for m in opts.metric:
     _show_conf(pairwise_within(X, m, opts.parallel), names, '%s %s' % (m, pp))
 
 
-def show_violins(X, labels, names, minerals, dana_nums, metrics, pp, opts):
+def show_violins(X, labels, names, minerals, dana_nums, pp, opts):
   dana_dist = _build_mask(dana_nums[labels])
   mask_names = ('species', 'group', 'type', 'class', 'no match')
   masks = (dana_dist < 2, dana_dist == 2, dana_dist == 3, dana_dist == 4,
@@ -47,7 +46,7 @@ def show_violins(X, labels, names, minerals, dana_nums, metrics, pp, opts):
     good_inds, = np.where(nnz > 0)
     masks = [masks[i] for i in good_inds]
     mask_names = [mask_names[i] for i in good_inds]
-  for m in metrics:
+  for m in opts.metric:
     D = pairwise_within(X, m, opts.parallel)
     pyplot.figure()
     violinplot([D[mask] for mask in masks])
@@ -55,15 +54,15 @@ def show_violins(X, labels, names, minerals, dana_nums, metrics, pp, opts):
     pyplot.xticks(range(1, len(masks)+1), mask_names)
 
 
-def print_intraclass(X, labels, names, minerals, dana_nums, metrics, pp, opts):
+def print_intraclass(X, labels, names, minerals, dana_nums, pp, opts):
   mask = labels[None] == labels[:,None]
   L = np.tile(labels[:,None], labels.shape[0])[mask]
   classes = np.unique(labels)
   classes = classes[dana_nums[classes].argsort()]
-  for m in metrics:
-    print '#', m, pp
+  for m in opts.metric:
+    print('#', m, pp)
     D = pairwise_within(X, m, opts.parallel)[mask]
-    print 'Mean\tMax\tSamples\tDana Number\tMineral'
+    print('Mean\tMax\tSamples\tDana Number\tMineral')
     stats = []
     for c in classes:
       intraclass = D[L==c]
@@ -78,18 +77,18 @@ def print_intraclass(X, labels, names, minerals, dana_nums, metrics, pp, opts):
       stats.append((ic_mean, ic_max, n, '.'.join(dana_nums[c]), minerals[c]))
     stats.sort(reverse=True)
     for row in stats:
-      print '%.4f\t%.4f\t%d\t%s\t%s' % row
+      print('%.4f\t%.4f\t%d\t%s\t%s' % row)
 
 
-def full_report(X, labels, names, minerals, dana_nums, metrics, pp, opts):
+def full_report(X, labels, names, minerals, dana_nums, pp, opts):
   mask = labels[None] == labels[:,None]
   L = np.tile(labels[:,None], labels.shape[0])[mask]
   classes = np.unique(labels)
   classes = classes[dana_nums[classes].argsort()]
-  for m in metrics:
-    print '#', m, pp
+  for m in opts.metric:
+    print('#', m, pp)
     D = pairwise_within(X, m, opts.parallel)[mask]
-    print 'Species\t# Spectra\tMean Dist.\tMax. Dist.\tdistance\tID #1\tID #2'
+    print('Species\t# Spectra\tMean Dist.\tMax. Dist.\tdistance\tID #1\tID #2')
     # Species (n samples) stats, then all pairs
     for c in classes:
       samples = names[labels==c]
@@ -100,19 +99,19 @@ def full_report(X, labels, names, minerals, dana_nums, metrics, pp, opts):
         intraclass = intraclass.reshape((n,n))[inds]
         ic_mean = intraclass.mean()
         ic_max = intraclass.max()
-        print '%s\t%d\t%g\t%g' % (minerals[c], n, ic_mean, ic_max)
+        print(minerals[c], n, ic_mean, ic_max, sep='\t')
         for i,(s1,s2) in enumerate(zip(*inds)):
           id1 = samples[s1].split('-')[1]
           id2 = samples[s2].split('-')[1]
-          print '\t\t\t\t%g\t%s\t%s' % (intraclass[i], id1, id2)
+          print('\t\t\t\t%g\t%s\t%s' % (intraclass[i], id1, id2))
 
 
-def accuracy(X, labels, names, minerals, dana_nums, metrics, pp, opts):
+def accuracy(X, labels, names, _, dana_nums, pp, opts):
   fancy_mask = _build_mask(dana_nums[labels])
   np.fill_diagonal(fancy_mask, 9)  # set self-edges to 9 (5 being no match)
   num_spectra = len(X)
-  for m in metrics:
-    print '#', m, pp
+  for m in opts.metric:
+    print('#', m, pp)
     D = pairwise_within(X, m, opts.parallel)
     intermedian_dist = np.zeros(num_spectra)
     for i,d in enumerate(D):
@@ -127,17 +126,17 @@ def accuracy(X, labels, names, minerals, dana_nums, metrics, pp, opts):
         continue
       no_match_density = gkde(d[fm==5])
       intermedian_dist[i] = no_match_density.evaluate(matches).mean()
-    print 'average error: %.3f +/- %.3f' % (intermedian_dist.mean(),
-                                            intermedian_dist.std())
+    print('average error: %.3f +/- %.3f' % (intermedian_dist.mean(),
+                                            intermedian_dist.std()))
     mismatches, = np.where(intermedian_dist > 2)
-    print 'mismatches:', mismatches.shape[0]
+    print('mismatches:', mismatches.shape[0])
     if opts.show_errors:
       for m in mismatches:
         d, fm = D[m], fancy_mask[m]
         closest = np.where(fm==5)[0][np.argmin(d[fm==5])]
         best = np.where(fm<=1)[0][np.argmin(d[fm<=1])]
-        print '  %s: %s (%.3f) > %s (%.3f)' % (
-            names[m], names[closest], D[m,closest], names[best], D[m,best])
+        print('  %s: %s (%.3f) > %s (%.3f)' % (
+            names[m], names[closest], D[m,closest], names[best], D[m,best]))
 
 
 def _build_mask(true_dana):
@@ -152,17 +151,7 @@ def _build_mask(true_dana):
   return 5 - mask  # make 0 -> ID match, 5 -> no match
 
 
-def _order_data(X, labels, label_map, names):
-  dana_nums = dana.convert_to_dana(label_map, np.arange(label_map.shape[0]))
-  order = dana_nums[labels].argsort()
-  if hasattr(X, 'shape'):
-    X = X[order]
-  else:
-    X = [X[i] for i in order]
-  return X, labels[order], names[order], label_map, dana_nums
-
-
-def tsne_viz(X, labels, names, minerals, dana_nums, metrics, pp, opts):
+def tsne_viz(X, labels, names, _, dana_nums, pp, opts):
   d = _build_mask(dana_nums[labels])
   # make same-species have dist 1
   d[d==0] = 1
@@ -190,7 +179,7 @@ def tsne_viz(X, labels, names, minerals, dana_nums, metrics, pp, opts):
     plot(emb, ax=ax, scatter=1, c=c, edgecolor='none', s=100, title=title)
 
 
-def optimize_matchscore(X, labels, names, _, dana_nums, metrics, pp, opts):
+def optimize_matchscore(X, labels, names, _, dana_nums, pp, opts):
   # IDEA: define a score based on inequalities in dana-world.
   dana_dist = _build_mask(dana_nums[labels])
   # make same-species have dist 1
@@ -201,7 +190,7 @@ def optimize_matchscore(X, labels, names, _, dana_nums, metrics, pp, opts):
   # from scipy.stats import skew
   # from pairwise_dists import score_pdist_row
 
-  for m in metrics:
+  for m in opts.metric:
     D = pairwise_within(X, m, opts.parallel)
     # Note: various rank correlation measures seem like they would work here,
     # but they don't! They don't respect the fact that we don't care about
@@ -209,11 +198,11 @@ def optimize_matchscore(X, labels, names, _, dana_nums, metrics, pp, opts):
     s = score_pdist(dana_dist, D)
     # S = score_pdist_row(dana_dist, D)
     # s = S.sum()
-    print m, pp, s
+    print(m, pp, s)
     # mu = D.mean()
     # var = D.var()
     # s = skew(D.ravel())
-    # print m, pp, mu, var, s
+    # print(m, pp, mu, var, s)
 
 PRINTERS = {
     'acc': accuracy,
@@ -226,11 +215,12 @@ PRINTERS = {
 }
 
 
-def _main(X, Y, label_map, names, printer, opts):
-  X, Y, names, minerals, dana_nums = _order_data(X, Y, label_map, names)
-  for pp in opts.pp:
-    pX = preprocess(X, pp)
-    printer(pX, Y, names, minerals, dana_nums, opts.metric, pp, opts)
+def _main(ds_view, label_meta, dana_nums, order, printer, opts):
+  Y = order[ds_view.mask]
+  ds_view.mask = Y
+  trajs, names = ds_view.get_trajectories(return_keys=True)
+  pp = ds_view.transformations['pp']
+  printer(trajs, Y, names, label_meta.labels, dana_nums, pp, opts)
 
 
 def main():
@@ -244,9 +234,13 @@ def main():
   options.validate_preprocess_opts(op, opts)
 
   printer = PRINTERS[opts.output]
-  data_file = options.find_data_file(opts, resampled=(not opts.traj))
-  for X, Y, label_map, names in prepare_data(data_file, opts):
-    _main(X, Y, label_map, names, printer, opts)
+  ds = load_dataset(opts.data, resample=opts.resample)
+  label_meta, _ = ds.find_metadata('minerals')
+  dana_nums = dana.convert_to_dana(label_meta.uniques,
+                                   np.arange(len(label_meta.uniques)))
+  order = dana_nums[label_meta.labels].argsort()
+  for ds_view in dataset_views(ds, opts):
+    _main(ds_view, label_meta, dana_nums, order, printer, opts)
   pyplot.show()
 
 

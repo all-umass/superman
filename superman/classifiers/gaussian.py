@@ -3,11 +3,10 @@ import numpy as np
 from time import time
 from scipy.stats import norm as normal_dist
 
-from superman.preprocess import preprocess
 from .utils import ClassifyResult
 
 
-def gauss_test(Xtrain, Ytrain, Xtest, opts):
+def gauss_test(Xtrain, Ytrain, Xtest, pp, opts):
   """Computes mean+std for each class in the training set,
   then computes probabilities for each band.
   Final score is calculated by dotting the band-probs with the sample itself;
@@ -26,21 +25,18 @@ def gauss_test(Xtrain, Ytrain, Xtest, opts):
   c_stds = np.empty_like(c_means)
   proba = np.empty((Xtest.shape[0], len(classes)))
 
-  for pp in opts.pp:
-    tic = time()
-    pp_test = preprocess(Xtest, pp)
-    pp_train = preprocess(Xtrain, pp)
-    for i,c in enumerate(classes):
-      points = pp_train[Ytrain == c]
-      c_means[i] = points.mean(axis=0)
-      c_stds[i] = np.maximum(points.std(axis=0), 1e-10)
+  tic = time()
+  for i,c in enumerate(classes):
+    points = Xtrain[Ytrain == c]
+    c_means[i] = points.mean(axis=0)
+    c_stds[i] = np.maximum(points.std(axis=0), 1e-10)
 
-    for j in xrange(len(classes)):
-      distribution = normal_dist(c_means[j], c_stds[j])
-      for i,test in enumerate(pp_test):
-        proba[i,j] = distribution.pdf(test).dot(test)
+  for j in xrange(len(classes)):
+    distribution = normal_dist(c_means[j], c_stds[j])
+    for i,test in enumerate(Xtest):
+      proba[i,j] = distribution.pdf(test).dot(test)
 
-    ranking = np.argsort(-proba)
-    elapsed = time() - tic
+  ranking = np.argsort(-proba)
+  elapsed = time() - tic
 
-    yield ClassifyResult(ranking, elapsed, 'gauss [%s]' % pp)
+  yield ClassifyResult(ranking, elapsed, 'gauss [%s]' % pp)

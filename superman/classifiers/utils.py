@@ -7,15 +7,18 @@ import superman.dana as dana
 ClassifyResult = namedtuple('ClassifyResult', ('ranking', 'elapsed', 'title'))
 
 
-def test_train_split(X, Y, min_samples_per_class, names=None):
-  labels = np.unique(Y)
+def test_train_mask(Y, label_map, min_samples_per_class):
   test_mask = np.zeros(Y.shape, dtype=bool)
   train_mask = test_mask.copy()
-  for i in labels:
+  for i in label_map:
     inds, = np.where(Y == i)
     np.random.shuffle(inds)  # add some randomness
     train_mask[inds[:min_samples_per_class]] = True
     test_mask[inds[min_samples_per_class:]] = True
+  return train_mask, test_mask
+
+
+def test_train_split(X, Y, train_mask, test_mask, names=None):
   # Split em up.
   Ytrain, Ytest = Y[train_mask], Y[test_mask]
   if hasattr(X, 'shape'):

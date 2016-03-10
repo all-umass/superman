@@ -4,16 +4,16 @@ from collections import namedtuple
 
 
 def mock_options(parallel=20, dana=False, show_errors=False, rank=[1],
-                 tsv=False, metric=['cosine'], k=[-1], type='raman',
-                 weights=['distance'], pp=[''], ishikawa=False,
-                 laser=['all'], data_dir=None, traj=False, raw=False,
-                 clf='knn', min_samples=3, folds=1, trials=1):
+                 tsv=False, metric=['cosine'], k=[-1], weights=['distance'],
+                 pp=[''], ishikawa=False, laser=['all'], resample=False,
+                 clf='knn', min_samples=3, folds=1, trials=1, data=None):
   kwargs = locals()  # Tricky hack: get the kwargs as a dict.
   MockOpt = namedtuple('MockOpt', kwargs.keys())
-  if data_dir is None:
+  if data is None:
     # Semi-hack: data now lives in another repository.
-    kwargs['data_dir'] = os.path.normpath(os.path.join(
-        os.path.dirname(__file__), '../../darby_projects/', '{type}', 'data'))
+    kwargs['data'] = os.path.normpath(os.path.join(
+        os.path.dirname(__file__),
+        '../../darby_projects/raman/data/rruff-spectra.hdf5'))
   return MockOpt(**kwargs)
 
 # Make a singleton tuple with the defaults for everything.
@@ -23,16 +23,12 @@ DEFAULTS = mock_options()
 def setup_common_opts():
   op = ArgumentParser()
   og = op.add_argument_group('Common Options')
-  og.add_argument('--type', type=str, default=DEFAULTS.type,
-                  choices=('raman','ftir','xrd'),
-                  help='Data type. [%(default)s]')
+  og.add_argument('--data', type=str, default=DEFAULTS.data,
+                  help='HDF5 file containing spectra. [%(default)s]')
   og.add_argument('--laser', type=str, default=DEFAULTS.laser, nargs='+',
                   help='Laser energies to use. %(default)s')
-  og.add_argument('--data-dir', type=str, default=DEFAULTS.data_dir,
-                  help='Data directory. [%(default)s]')
-  og.add_argument('--traj', action='store_true', help='Use trajectory methods')
-  og.add_argument('--raw', action='store_true',
-                  help='Use non-baseline-removed data')
+  og.add_argument('--resample', action='store_true',
+                  help='Resample trajectories to common wavelengths.')
   og.add_argument('--parallel', type=int, default=DEFAULTS.parallel,
                   help='Number of processes/threads to use. [%(default)s]')
   return op
@@ -40,17 +36,9 @@ def setup_common_opts():
 
 def parse_opts(op, lasers=True):
   opts = op.parse_args()
-  # Fill in the {type} placeholder with the --type argument, if needed.
-  opts.data_dir = opts.data_dir.replace('{type}', opts.type)
   if not lasers and tuple(opts.laser) != ('all',):
     op.error('Filtering by laser type is not supported')
   return opts
-
-
-def find_data_file(opts, resampled=True):
-  kind = 'resampled' if resampled else 'spectra'
-  raw = '-raw' if opts.raw else ''
-  return os.path.join(opts.data_dir, 'rruff-%s%s.npz' % (kind, raw))
 
 
 def add_distance_options(op):

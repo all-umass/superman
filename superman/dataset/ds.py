@@ -2,7 +2,7 @@ from __future__ import absolute_import
 import numpy as np
 
 from ..preprocess import preprocess
-from ..utils import ALAMOS_MASK
+from ..utils import ALAMOS_MASK, resample
 from .metadata import is_metadata, PrimaryKeyMetadata
 from .ds_view import DatasetView
 
@@ -127,6 +127,15 @@ class TrajDataset(Dataset):
       traj = np.array(traj, copy=copy)
       traj[gap_inds, 1] = np.nan
     return traj
+
+  def resample(self, band_min, band_max, band_step):
+    target_bands = np.arange(band_min, band_max, band_step)
+    intensities = np.empty((self.num_spectra(), len(target_bands)))
+    for i, key in enumerate(self.pkey.keys):
+      intensities[i] = resample(self.traj[key], target_bands)
+    ds = VectorDataset(self.name, self.kind)
+    ds.set_data(target_bands, intensities, pkey=self.pkey, **self.metadata)
+    return ds
 
 
 class VectorDataset(Dataset):

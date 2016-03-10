@@ -1,3 +1,4 @@
+from __future__ import absolute_import, print_function
 import numpy as np
 import warnings
 
@@ -10,27 +11,22 @@ from sklearn.base import BaseEstimator
 from sklearn.base import ClassifierMixin
 from sklearn.preprocessing import LabelBinarizer
 
-from superman.preprocess import preprocess
-from utils import ClassifyResult
+from .utils import ClassifyResult
 
 
 def neural_net_test(Xtrain, Ytrain, Xtest, pp, opts):
-  for pp in opts.pp:
-    tic = time()
-    pp_test = preprocess(Xtest, pp)
-    pp_train = preprocess(Xtrain, pp)
+  tic = time()
+  mlp = MLPClassifier(n_hidden=24, lr=0.1, l2decay=0, loss='cross_entropy',
+                      output_layer='softmax', batch_size=5, verbose=0)
+  mlp.fit(Xtrain, Ytrain)
+  training_score = mlp.score(Xtrain, Ytrain)
+  print("training accuracy: %f" % training_score)
 
-    mlp = MLPClassifier(n_hidden=24, lr=0.1, l2decay=0, loss='cross_entropy',
-                        output_layer='softmax', batch_size=5, verbose=0)
-    mlp.fit(pp_train, Ytrain)
-    training_score = mlp.score(pp_train, Ytrain)
-    print("training accuracy: %f" % training_score)
+  proba = mlp.predict_proba(Xtest)
+  ranking = np.argsort(-proba)
 
-    proba = mlp.predict_proba(pp_test)
-    ranking = np.argsort(-proba)
-
-    elapsed = time() - tic
-    yield ClassifyResult(ranking, elapsed, 'MLP [%s]' % pp)
+  elapsed = time() - tic
+  yield ClassifyResult(ranking, elapsed, 'MLP [%s]' % pp)
 
 
 # Below: code from https://gist.github.com/amueller/2061456
@@ -81,7 +77,7 @@ class BaseMLP(BaseEstimator):
       raise ValueError(
           "'output_layer' must be one of 'linear', 'softmax' or 'tanh'.")
 
-    if not loss in ['cross_entropy', 'square', 'crammer_singer']:
+    if loss not in ['cross_entropy', 'square', 'crammer_singer']:
       raise ValueError(
           "'loss' must be one of 'cross_entropy', 'square' or 'crammer_singer'")
       self.loss = loss
@@ -92,7 +88,7 @@ class BaseMLP(BaseEstimator):
     if y.shape[0] != n_samples:
       raise ValueError("Shapes of X and y don't fit.")
     self.n_outs = y.shape[1]
-    #n_batches = int(np.ceil(float(n_samples) / self.batch_size))
+    # n_batches = int(np.ceil(float(n_samples) / self.batch_size))
     n_batches = n_samples / self.batch_size
     if n_samples % self.batch_size != 0:
       warnings.warn("Discarding some samples: \
@@ -149,15 +145,12 @@ class BaseMLP(BaseEstimator):
     """Do a backward pass through the network and update the weights"""
 
     # calculate derivative of output layer
-    if (self.loss in ['cross_entropy'] or
-        (self.loss == 'square' and self.output_func == id)):
+    simple_loss = (self.loss == 'cross_entropy' or
+                   (self.loss == 'square' and self.output_func == id))
+    if simple_loss:
       delta_o[:] = y[batch_slice] - x_output
     elif self.loss == 'crammer_singer':
       raise ValueError("Not implemented yet.")
-      delta_o[:] = 0
-      delta_o[y[batch_slice], np.ogrid[len(batch_slice)]] -= 1
-      delta_o[np.argmax(x_output - np.ones((1))[y[batch_slice], np.ogrid[len(batch_slice)]], axis=1), np.ogrid[len(batch_slice)]] += 1
-
     elif self.loss == 'square' and self.output_func == _tanh:
       delta_o[:] = (y[batch_slice] - x_output) * _dtanh(x_output)
     else:
@@ -170,7 +163,7 @@ class BaseMLP(BaseEstimator):
     # update weights
     self.weights2_ += self.lr / self.batch_size * np.dot(x_hidden.T, delta_o)
     self.bias2_ += self.lr * np.mean(delta_o, axis=0)
-    self.weights1_ += self.lr / self.batch_size * np.dot(X[batch_slice].T, delta_h)
+    self.weights1_ += self.lr / self.batch_size * X[batch_slice].T.dot(delta_h)
     self.bias1_ += self.lr * np.mean(delta_h, axis=0)
 
 
@@ -186,9 +179,7 @@ class MLPClassifier(BaseMLP, ClassifierMixin):
   def fit(self, X, y, max_epochs=10, shuffle_data=False):
     self.lb = LabelBinarizer()
     one_hot_labels = self.lb.fit_transform(y)
-    super(MLPClassifier, self).fit(
-        X, one_hot_labels, max_epochs,
-        shuffle_data)
+    super(MLPClassifier, self).fit(X, one_hot_labels, max_epochs, shuffle_data)
     return self
 
   def predict(self, X):
