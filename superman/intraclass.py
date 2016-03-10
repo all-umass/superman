@@ -216,11 +216,11 @@ PRINTERS = {
 
 
 def _main(ds_view, label_meta, dana_nums, order, printer, opts):
-  Y = order[ds_view.mask]
-  ds_view.mask = Y
-  trajs, names = ds_view.get_trajectories(return_keys=True)
+  ds_view.mask = order[ds_view.mask]
+  X, names = ds_view.get_data(return_keys=True)
   pp = ds_view.transformations['pp']
-  printer(trajs, Y, names, label_meta.labels, dana_nums, pp, opts)
+  Y = label_meta.labels[ds_view.mask]
+  printer(X, Y, names, label_meta.uniques, dana_nums, pp, opts)
 
 
 def main():
