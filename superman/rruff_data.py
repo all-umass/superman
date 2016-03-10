@@ -12,12 +12,14 @@ def load_dataset(opts):
   data = h5py.File(opts.data, 'r')
   names = data['/meta/sample']
   species = np.array([n.rsplit('-', 1)[0] for n in names])
-  ishi = BooleanMetadata([s in ISHIKAWA_MINERALS for s in species])
+  meta = dict(
+      ishikawa=BooleanMetadata([s in ISHIKAWA_MINERALS for s in species]),
+      minerals=LookupMetadata(species),
+      rruff_ids=LookupMetadata(data['/meta/rruff_id']))
+  if '/meta/laser' in data:
+    meta['lasers'] = LookupMetadata(data['/meta/laser'])
   ds = TrajDataset(ds_name, '<spectra>')
-  ds.set_data(names, data['/spectra'], ishikawa=ishi,
-              minerals=LookupMetadata(species),
-              rruff_ids=LookupMetadata(data['/meta/rruff_id']),
-              lasers=LookupMetadata(data['/meta/laser']))
+  ds.set_data(names, data['/spectra'], **meta)
   if opts.resample:
     ds = ds.resample(opts.band_min, opts.band_max, opts.band_step)
   return ds
@@ -26,8 +28,10 @@ def load_dataset(opts):
 def dataset_views(ds, opts, **filter_conditions):
   if opts.ishikawa:
     filter_conditions['ishikawa'] = 'yes'
+  has_lasers = 'lasers' in ds.metadata
   for laser in opts.laser:
-    filter_conditions['lasers'] = [] if laser == 'all' else [laser]
+    if has_lasers:
+      filter_conditions['lasers'] = [] if laser == 'all' else [laser]
     mask = ds.filter_metadata(filter_conditions)
     for pp in opts.pp:
       yield ds.view(mask=mask, pp=pp)
