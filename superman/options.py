@@ -6,7 +6,8 @@ from collections import namedtuple
 def mock_options(parallel=20, dana=False, show_errors=False, rank=[1],
                  tsv=False, metric=['cosine'], k=[-1], weights=['distance'],
                  pp=[''], ishikawa=False, laser=['all'], resample=False,
-                 clf='knn', min_samples=3, folds=1, trials=1, data=None):
+                 clf='knn', min_samples=3, folds=1, trials=1, data=None,
+                 band_min=85, band_max=1800, band_step=1):
   kwargs = locals()  # Tricky hack: get the kwargs as a dict.
   MockOpt = namedtuple('MockOpt', kwargs.keys())
   if data is None:
@@ -31,6 +32,12 @@ def setup_common_opts():
                   help='Resample trajectories to common wavelengths.')
   og.add_argument('--parallel', type=int, default=DEFAULTS.parallel,
                   help='Number of processes/threads to use. [%(default)s]')
+  og.add_argument('--band-min', type=int, default=DEFAULTS.band_min,
+                  help='Lower bound for resampling. [%(default)s]')
+  og.add_argument('--band-max', type=int, default=DEFAULTS.band_max,
+                  help='Upper bound for resampling. [%(default)s]')
+  og.add_argument('--band-step', type=int, default=DEFAULTS.band_step,
+                  help='Sampling interval for resampling. [%(default)s]')
   return op
 
 

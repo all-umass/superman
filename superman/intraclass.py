@@ -6,7 +6,7 @@ from viztricks import violinplot, axes_grid, plot, imagesc
 
 from . import dana
 from . import options
-from .dataset import load_dataset, dataset_views
+from .rruff_data import load_dataset, dataset_views
 from .pairwise_dists import pairwise_within, score_pdist
 
 
@@ -234,7 +234,7 @@ def main():
   options.validate_preprocess_opts(op, opts)
 
   printer = PRINTERS[opts.output]
-  ds = load_dataset(opts.data, resample=opts.resample)
+  ds = load_dataset(opts)
   label_meta, _ = ds.find_metadata('minerals')
   dana_nums = dana.convert_to_dana(label_meta.uniques,
                                    np.arange(len(label_meta.uniques)))

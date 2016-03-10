@@ -3,7 +3,7 @@ import numpy as np
 from matplotlib import pyplot as plt
 from time import time
 
-from ..dataset import load_dataset, dataset_views
+from ..rruff_data import load_dataset, dataset_views
 from .. import options
 from . import PEAK_CLASSES
 
@@ -38,7 +38,7 @@ def main():
   opts = options.parse_opts(op, lasers=False)
   options.validate_preprocess_opts(op, opts)
 
-  ds = load_dataset(opts.data, resample=opts.resample)
+  ds = load_dataset(opts)
   for ds_view in dataset_views(ds, opts, minerals=opts.debug):
     debug_peaks(ds_view, opts)
   plt.show()

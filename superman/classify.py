@@ -5,7 +5,7 @@ from . import options
 from .classifiers import knn_test, CLASSIFIERS
 from .classifiers.utils import (
     test_train_mask, test_train_split, print_results, print_cross_fold)
-from .dataset import load_dataset, dataset_views
+from .rruff_data import load_dataset, dataset_views
 
 
 def _classify_oneshot(ds, opts):
@@ -105,7 +105,7 @@ def main():
   if opts.clf != 'knn' and not opts.resample:
     op.error('Only knn supports trajectories, pass --resample to use others.')
 
-  ds = load_dataset(opts.data, resample=opts.resample)
+  ds = load_dataset(opts)
   if opts.folds == 1:
     _classify_oneshot(ds, opts)
   else:

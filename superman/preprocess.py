@@ -171,7 +171,7 @@ def debug(before, after, legend=True):
 
 def main():
   from . import options
-  from .dataset import load_dataset, dataset_views
+  from .rruff_data import load_dataset, dataset_views
 
   op = options.setup_common_opts()
   op.add_argument('--debug', type=str, nargs='+', default=['Trolleite'],
@@ -185,7 +185,7 @@ def main():
   if len(opts.pp) != 2:
     op.error('Must provide 1 or 2 --pp sequences for before/after plot')
 
-  ds = load_dataset(opts.data, resample=opts.resample)
+  ds = load_dataset(opts)
   before, after = list(dataset_views(ds, opts, minerals=opts.debug))
   debug(before, after, legend=opts.legend)
 
