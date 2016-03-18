@@ -17,6 +17,9 @@ class DatasetView(object):
   def __str__(self):
     return '<DatasetView of "%s": %r>' % (self.ds, self.transformations)
 
+  def get_trajectory(self, key):
+    return self.ds.get_trajectory(key, self.transformations)
+
   def get_trajectories(self, return_keys=False):
     # hack for speed, kinda lame
     if hasattr(self.ds, 'intensities'):
@@ -71,7 +74,7 @@ class DatasetView(object):
 
   def whole_spectrum_search(self, query, num_endmembers=1, num_results=10,
                             metric='combo', param=0, num_procs=5,
-                            min_window=0, score_pct=1):
+                            min_window=0, score_pct=1, method='sub'):
     # neurotic error checking
     if self.ds.pkey is None:
       raise ValueError('%s has no primary key, cannot search.' % self.ds)
@@ -84,6 +87,8 @@ class DatasetView(object):
       raise ValueError('Invalid min window size: %d' % min_window)
     if not (0 < score_pct < 100):
       raise ValueError('Invalid score percentile threshold: %d' % score_pct)
+    if method not in ('add', 'sub'):
+      raise ValueError('Invalid query modification method: %r' % method)
     if query[0,0] > query[1,0]:
       raise ValueError('Query spectrum must have increasing bands')
     if abs(1 - query[:,1].max()) > 0.001:
@@ -99,13 +104,13 @@ class DatasetView(object):
     # run the search
     num_sub_results = int(np.ceil(num_results ** (1./num_endmembers)))
     res = _cs_helper(query, library, names, num_endmembers, num_sub_results,
-                     metric, param, num_procs, min_window, score_pct)
+                     metric, param, num_procs, min_window, score_pct, method)
     top_sim, top_names = zip(*sorted(res, reverse=True)[:num_results])
     return top_names, top_sim
 
 
 def _cs_helper(query, library, names, num_endmembers, num_results, metric,
-               param, num_procs, min_window, score_pct):
+               param, num_procs, min_window, score_pct, method):
   # calculate a vector of distances
   dist = lcss_search(query, library, metric, param, num_procs=num_procs,
                      min_window=min_window)
@@ -119,15 +124,25 @@ def _cs_helper(query, library, names, num_endmembers, num_results, metric,
     if num_endmembers == 1:
       yield sim, [name]
     else:
-      # get per-channel distance scores
-      scores = lcss_full(query, library[k], metric, param)
-      # remove the matching spectrum (where distance <= x%)
-      sub = _remove_spectrum(query, scores <= np.percentile(scores, score_pct))
-      # recurse
-      for s2, n2 in _cs_helper(sub, library, names, num_endmembers-1,
-                               num_results, metric, param, num_procs,
-                               min_window, score_pct):
-        yield s2 * sim, [name] + n2
+      if method == 'add':
+        tmp = library[k]
+        lib = [_add_spectrum(x, tmp) for x in library]
+        # recurse
+        for s2, n2 in _cs_helper(query, lib, names, num_endmembers-1,
+                                 num_results, metric, param, num_procs,
+                                 min_window, score_pct, method):
+          yield s2, [name] + n2
+      else:
+        # get per-channel distance scores
+        scores = lcss_full(query, library[k], metric, param)
+        # remove the matching spectrum (where distance <= x%)
+        mask = scores <= np.percentile(scores, score_pct)
+        sub = _remove_spectrum(query, mask)
+        # recurse
+        for s2, n2 in _cs_helper(sub, library, names, num_endmembers-1,
+                                 num_results, metric, param, num_procs,
+                                 min_window, score_pct, method):
+          yield s2 * sim, [name] + n2
 
 
 def _remove_spectrum(a, mask):
@@ -136,3 +151,10 @@ def _remove_spectrum(a, mask):
   sub[:,1] = np.where(mask, 0, a[:,1])
   sub[:,1] /= sub[:,1].max()
   return sub
+
+
+def _add_spectrum(a, b):
+  bands, ints1 = a.T
+  ints2 = np.interp(bands, *b.T)
+  ints = np.maximum(ints1, ints2)
+  return np.column_stack((bands, ints)).astype(np.float32, order='C')
