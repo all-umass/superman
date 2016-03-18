@@ -157,4 +157,12 @@ def _add_spectrum(a, b):
   bands, ints1 = a.T
   ints2 = np.interp(bands, *b.T)
   ints = np.maximum(ints1, ints2)
+  if bands[0] > b[0,0]:
+    idx = np.searchsorted(b[:,0], bands[0])
+    bands = np.concatenate((b[:idx,0], bands))
+    ints = np.concatenate((b[:idx,1], ints))
+  if bands[-1] < b[-1,0]:
+    idx = np.searchsorted(b[:,0], bands[-1])
+    bands = np.concatenate((bands, b[idx:,0]))
+    ints = np.concatenate((ints, b[idx:,1]))
   return np.column_stack((bands, ints)).astype(np.float32, order='C')
