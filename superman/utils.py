@@ -26,7 +26,7 @@ ISHIKAWA_MINERALS = set([
     'Quartz'
 ])
 
+
 def resample(spectrum, target_bands):
   m = spectrum[:,1].min()
   return np.interp(target_bands, spectrum[:,0], spectrum[:,1], left=m, right=m)
-
