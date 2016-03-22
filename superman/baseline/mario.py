@@ -1,6 +1,7 @@
+from __future__ import absolute_import, print_function
 import numpy as np
 from numpy.polynomial.hermite import hermvander
-from common import Baseline
+from .common import Baseline
 try:
   from cvxopt import matrix as cvx_matrix, solvers
   HAS_CVXOPT = True
@@ -10,7 +11,7 @@ except ImportError:
   try:
     from scipy.optimize import linprog
   except ImportError:
-    print '\nError: Use scipy >= 0.15 or install cvxopt\n'
+    print('\nError: Use scipy >= 0.15 or install cvxopt\n')
     raise
 
 np.set_printoptions(precision=4, suppress=True)
@@ -33,11 +34,11 @@ def mario_baseline(bands, intensities, poly_order=10, max_iters=None,
   # Keep trying to solve until we succeed.
   for order in xrange(poly_order, 0, -1):
     result, P = _mario_helper(bands, s, order, opts, callback)
-    print 'With order %d:' % order, result['status']
+    print('With order %d:' % order, result['status'])
     if result['x'] is not None:
       break
   else:
-    print 'mario_baseline didnt find a fit at any order'
+    print('mario_baseline didnt find a fit at any order')
     return np.zeros_like(s)
   baseline = P.dot(np.array(result['x']).ravel())
   # Flip it back over.
@@ -76,15 +77,15 @@ def _linprog_callback(xk, nit=0, phase=0, tableau=None, **kwargs):
     _callback_state['last_phase'] = phase
   if phase == 1:
     if new_state:
-      print '--- Phase 1: Find a feasible point. ---'
-      print 'Iter\tObjective'
+      print('--- Phase 1: Find a feasible point. ---')
+      print('Iter\tObjective')
     _callback_state['last_nit'] = nit
-    print '%d\t%g' % (nit, obj)
+    print('%d\t%g' % (nit, obj))
   else:
     if new_state:
-      print '--- Phase 2: Minimize using simplex. ---'
-      print 'Iter\tObjective'
-    print '%d\t%g' % (nit - _callback_state['last_nit'], obj)
+      print('--- Phase 2: Minimize using simplex. ---')
+      print('Iter\tObjective')
+    print('%d\t%g' % (nit - _callback_state['last_nit'], obj))
 
 
 class Mario(Baseline):

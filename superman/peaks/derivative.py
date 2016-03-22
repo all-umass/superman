@@ -1,6 +1,7 @@
+from __future__ import absolute_import
 import numpy as np
 
-from common import PeakFinder, _filter_peaks
+from .common import PeakFinder, _filter_peaks
 
 
 class Derivative(PeakFinder):
@@ -25,5 +26,4 @@ class Derivative(PeakFinder):
                                height_pct=self._peak_percentile,
                                min_interpeak=self._min_interpeak,
                                max_peaks=self._max_peaks))
-    return ret                         
-
+    return ret

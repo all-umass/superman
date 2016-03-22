@@ -2,7 +2,7 @@ from __future__ import print_function, absolute_import
 import numpy as np
 from collections import namedtuple
 
-import superman.dana as dana
+from .. import dana
 
 ClassifyResult = namedtuple('ClassifyResult', ('ranking', 'elapsed', 'title'))
 

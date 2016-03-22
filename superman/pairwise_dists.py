@@ -1,10 +1,11 @@
+from __future__ import absolute_import
 import numpy as np
 from sklearn.metrics import pairwise_distances as _sklearn_pdist
-from superman.traj.all_pairs import lcss_between, lcss_within
+from .traj.all_pairs import lcss_between, lcss_within
 
 import pyximport
 pyximport.install()
-import _pdist
+from . import _pdist
 score_pdist = _pdist.score_pdist
 
 

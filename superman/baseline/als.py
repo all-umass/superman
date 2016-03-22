@@ -1,5 +1,6 @@
+from __future__ import absolute_import, print_function
 import numpy as np
-from common import WhittakerSmoother, Baseline
+from .common import WhittakerSmoother, Baseline
 
 
 def als_baseline(intensities, asymmetry_param=0.05, smoothness_param=1e6,
@@ -22,12 +23,12 @@ def als_baseline(intensities, asymmetry_param=0.05, smoothness_param=1e6,
     new_w = p*mask + (1-p)*(~mask)
     conv = np.linalg.norm(new_w - w)
     if verbose:
-      print i+1, conv
+      print(i+1, conv)
     if conv < conv_thresh:
       break
     w = new_w
   else:
-    print 'ALS did not converge in %d iterations' % max_iters
+    print('ALS did not converge in', max_iters, 'iterations')
   return z
 
 

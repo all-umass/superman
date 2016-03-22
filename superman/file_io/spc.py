@@ -1,12 +1,13 @@
+from __future__ import absolute_import, print_function
 import numpy as np
 from datetime import datetime
-
 from construct import (
     Anchor, Array, BitStruct, Byte, Embed, FieldError, Flag, If, IfThenElse,
     LFloat32, LFloat64, OnDemand, Padding, Pointer, SLInt16, SLInt32, String,
     Struct, Switch, ULInt32, Value
 )
-from construct_utils import BitSplitter, FixedSizeCString
+
+from .construct_utils import BitSplitter, FixedSizeCString
 
 X_AXIS_LABELS = [
     "Arbitrary", "Wavenumber (cm-1)", "Micrometers (um)", "Nanometers (nm)",
@@ -201,33 +202,33 @@ def prettyprint(data):
   np.set_printoptions(precision=4, suppress=True)
   h = data.Header
   d = h.Date
-  print 'SPC file, version %s (%s)' % (h.version, VERSIONS[h.version])
+  print('SPC file, version %s (%s)' % (h.version, VERSIONS[h.version]))
   try:
-    print 'Date:', datetime(d.year, d.month, d.day, d.hour, d.minute)
+    print('Date:', datetime(d.year, d.month, d.day, d.hour, d.minute))
   except ValueError:
     pass  # Sometimes dates are not provided, and are all zeros
   if hasattr(h, 'experiment_type'):
-    print 'Experiment:', EXPERIMENT_TYPES[h.experiment_type]
-  print 'X axis:', X_AXIS_LABELS[h.xtype]
-  print 'Y axis:', Y_AXIS_LABELS[h.ytype]
+    print('Experiment:', EXPERIMENT_TYPES[h.experiment_type])
+  print('X axis:', X_AXIS_LABELS[h.xtype])
+  print('Y axis:', Y_AXIS_LABELS[h.ytype])
   if hasattr(h, 'ztype'):
-    print 'Z axis:', X_AXIS_LABELS[h.ztype]
+    print('Z axis:', X_AXIS_LABELS[h.ztype])
   if hasattr(h, 'wtype'):
-    print 'W axis:', X_AXIS_LABELS[h.wtype]
+    print('W axis:', X_AXIS_LABELS[h.wtype])
   if data.xvals is not None:
     assert h.TFlags.has_xs
-    print 'X:', np.array(data.xvals.value)
+    print('X:', np.array(data.xvals.value))
   else:
-    print 'X: linspace(%g, %g, %d)' % (h.first, h.last, h.npts)
-  print '%d subfiles' % len(data.Subfile)
+    print('X: linspace(%g, %g, %d)' % (h.first, h.last, h.npts))
+  print('%d subfiles' % len(data.Subfile))
   for i, sub in enumerate(data.Subfile):
-    print 'Subfile %d:' % (i+1), sub
+    print('Subfile %d:' % (i+1), sub)
   if data.LogData is not None:
-    print 'LogData:'
+    print('LogData:')
     try:
-      print data.LogData.content.value
+      print(data.LogData.content.value)
     except FieldError as e:
-      print '    Error reading log:', e
+      print('    Error reading log:', e)
 
 
 def _convert_arrays(data):
@@ -290,7 +291,7 @@ if __name__ == '__main__':
   if len(args) != 1:
     op.error('Supply exactly one filename argument.')
   if not (opts._print or opts.plot):
-    op.error('Must supply either --plot or --print.')
+    op.error('Must supply either --plot or --print')
   data = SPCFile.parse_stream(open(args[0], 'rb'))
   if opts._print:
     prettyprint(data)

@@ -6,8 +6,8 @@ from libc.math cimport fmin, fabs
 
 cpdef void match_between(double[:,::1] query, double[:,::1] target,
                          double exp, double[:,::1] dist) nogil:
-  cdef int n1 = query.shape[0], n2 = target.shape[0], d = query.shape[1]
-  cdef int i, j, k
+  cdef Py_ssize_t n1 = query.shape[0], n2 = target.shape[0], d = query.shape[1]
+  cdef Py_ssize_t i, j, k
   cdef double score
   # For all pairs of spectra
   for i in prange(n1, nogil=True):
@@ -17,8 +17,8 @@ cpdef void match_between(double[:,::1] query, double[:,::1] target,
 
 cpdef void match_within(double[:,::1] spectra, double exp,
                         double[:,::1] dist) nogil:
-  cdef int n = spectra.shape[0], d = spectra.shape[1]
-  cdef int i, j, k
+  cdef Py_ssize_t n = spectra.shape[0], d = spectra.shape[1]
+  cdef Py_ssize_t i, j, k
   cdef double score
   # Upper-right triangle only
   for i in prange(n-1, nogil=True):
@@ -30,8 +30,8 @@ cpdef void match_within(double[:,::1] spectra, double exp,
 
 cpdef void combo_between(double[:,::1] query, double[:,::1] target,
                          double w, double[:,::1] dist) nogil:
-  cdef int n1 = query.shape[0], n2 = target.shape[0], d = query.shape[1]
-  cdef int i, j
+  cdef Py_ssize_t n1 = query.shape[0], n2 = target.shape[0], d = query.shape[1]
+  cdef Py_ssize_t i, j
   # For all pairs of spectra
   for i in prange(n1, nogil=True):
     for j in range(n2):
@@ -40,8 +40,8 @@ cpdef void combo_between(double[:,::1] query, double[:,::1] target,
 
 cpdef void combo_within(double[:,::1] spectra, double w,
                         double[:,::1] dist) nogil:
-  cdef int n = spectra.shape[0], d = spectra.shape[1]
-  cdef int i, j
+  cdef Py_ssize_t n = spectra.shape[0], d = spectra.shape[1]
+  cdef Py_ssize_t i, j
   cdef double score
   # Upper-right triangle only
   for i in prange(n-1, nogil=True):
@@ -52,17 +52,17 @@ cpdef void combo_within(double[:,::1] spectra, double w,
 
 
 cdef inline double score_match(double[::1] spec1, double[::1] spec2,
-                               double exp, int n) nogil:
+                               double exp, Py_ssize_t n) nogil:
   cdef double score = 0.0
-  cdef int k
+  cdef Py_ssize_t k
   for k in range(n):
     score += ms(spec1[k], spec2[k], exp)
   return score
 
 cdef inline double score_combo(double[::1] spec1, double[::1] spec2,
-                               double w, int n) nogil:
+                               double w, Py_ssize_t n) nogil:
   cdef double score = 0.0
-  cdef int k
+  cdef Py_ssize_t k
   for k in range(n):
     score += combo(spec1[k], spec2[k], w)
   return score
@@ -74,16 +74,17 @@ cdef inline double combo(double ay, double by, double w) nogil:
   return w * fabs(ay - by) - (1 - w) * (ay * by)
 
 
-cpdef int score_pdist(char[:,::1] dana_dist, double[:,::1] test_dist) nogil:
-  cdef int i, num_wrong = 0, n = dana_dist.shape[0]
+cpdef Py_ssize_t score_pdist(char[:,::1] dana_dist, double[:,::1] test_dist) nogil:
+  cdef Py_ssize_t i, num_wrong = 0, n = dana_dist.shape[0]
   # For all rows:
   for i in prange(n, nogil=True):
     num_wrong += score_pdist_row(dana_dist[i], test_dist[i], i, n)
   return num_wrong
 
 
-cpdef int score_pdist_row(char[::1] dana, double[::1] test, int i, int n) nogil:
-  cdef int j, k_start, k, num_wrong = 0
+cpdef Py_ssize_t score_pdist_row(char[::1] dana, double[::1] test,
+                                 Py_ssize_t i, Py_ssize_t n) nogil:
+  cdef Py_ssize_t j, k_start, k, num_wrong = 0
   # For the upper trianglular columns
   k_start = i + 2
   for j in range(i+1, n):

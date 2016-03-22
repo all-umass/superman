@@ -1,6 +1,10 @@
+from __future__ import print_function
 import os.path
 import numpy as np
-from itertools import izip
+try:
+  from itertools import izip as zip
+except ImportError:
+  pass  # must be Python 3, where zip ~= izip
 
 
 def convert_to_dana(mineral_names, mineral_ids=None,
@@ -8,12 +12,12 @@ def convert_to_dana(mineral_names, mineral_ids=None,
   name_to_number = load_dana_map()
   dana = []
   if mineral_ids is None:
-    dana_dtype = zip(['klass','type','group','species'], ['|S4']*4)
+    dana_dtype = list(zip(['klass','type','group','species'], ['|S4']*4))
     for name in mineral_names:
       dana.append(name_to_number.get(name, unk_dana))
   else:
-    dana_dtype = zip(['klass','type','group','species','ID'], ['|S4']*5)
-    for name, id_num in izip(mineral_names, mineral_ids):
+    dana_dtype = list(zip(['klass','type','group','species','ID'], ['|S4']*5))
+    for name, id_num in zip(mineral_names, mineral_ids):
       dana.append(name_to_number.get(name, unk_dana) + (str(id_num),))
   return np.array(dana, dtype=dana_dtype).view(np.recarray)
 
@@ -38,7 +42,7 @@ def _gen_dana_tuples():
       try:
         num,name = line.strip().split(' ', 1)
       except ValueError as e:
-        print line
+        print(line)
         raise e
       yield name, tuple(num.split('.'))
 

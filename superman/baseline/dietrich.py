@@ -1,8 +1,9 @@
+from __future__ import absolute_import
 import numpy as np
 from scipy.ndimage.morphology import binary_erosion
 from scipy.signal import convolve
 
-from common import iterative_threshold, Baseline
+from .common import iterative_threshold, Baseline
 
 
 def dietrich_baseline(bands, intensities, half_window=16, num_erosions=10):

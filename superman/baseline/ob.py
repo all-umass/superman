@@ -1,6 +1,7 @@
+from __future__ import absolute_import
 import numpy as np
 from scipy.sparse.linalg import svds
-from common import Baseline
+from .common import Baseline
 
 
 def ob_baseline(intensities, n_components):

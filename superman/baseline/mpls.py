@@ -1,6 +1,7 @@
+from __future__ import absolute_import
 import numpy as np
 from scipy.ndimage import grey_opening
-from common import WhittakerSmoother, Baseline
+from .common import WhittakerSmoother, Baseline
 
 
 def mpls_baseline(intensities, smoothness_param=100, deriv_order=1,

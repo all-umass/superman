@@ -1,5 +1,6 @@
+from __future__ import absolute_import
 from scipy.signal import medfilt
-from common import Baseline
+from .common import Baseline
 
 
 def median_baseline(intensities, window_size=501):

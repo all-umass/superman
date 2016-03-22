@@ -1,5 +1,7 @@
-# Mk4py, aka metakit.
-# Python bindings are native-compiled: http://equi4.com/metakit/python.html
+"""Mk4py, aka metakit.
+Python bindings are native-compiled: http://equi4.com/metakit/python.html
+"""
+from __future__ import print_function
 import Mk4py
 import numpy as np
 import os
@@ -30,11 +32,11 @@ class WXDFile(object):
     self.table = dirs[0].files[0]._B
 
   def print_info(self):
-    print 'Subfile Name  \tSize\tDate'
-    print '-' * 34
+    print('Subfile Name  \tSize\tDate')
+    print('-' * 34)
     for row in self.table:
-      print '\t'.join(map(str, (row.name, row.size, row.date)))
-    print '-' * 34
+      print('\t'.join(map(str, (row.name, row.size, row.date))))
+    print('-' * 34)
 
   def _row_data(self, row_name):
     row, = self.table.select(name=row_name)
@@ -59,7 +61,7 @@ class WXDFile(object):
     with open(outfile, 'w') as fh:
       for p in props:
         if 'TaggedData' in p:
-          print >>fh, '%s\t%r' % (p.label, repr(p.TaggedData.value))
+          print('%s\t%r' % (p.label, repr(p.TaggedData.value)), file=fh)
 
   def extract_analysis(self, outfile):
     # TODO: figure out how to parse this part
@@ -78,7 +80,7 @@ class WXDFile(object):
     if verbose:
       for p in dset.Property:
         if 'TaggedData' in p:
-          print p.label, '=>', repr(p.TaggedData.value)
+          print(p.label, '=>', repr(p.TaggedData.value))
 
     if not all_trajs:
       dlist = dset.LabeledDataList[0]

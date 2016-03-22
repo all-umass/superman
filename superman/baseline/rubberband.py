@@ -1,6 +1,7 @@
+from __future__ import absolute_import
 import numpy as np
 from scipy.spatial import ConvexHull
-from common import Baseline
+from .common import Baseline
 
 
 def rubberband_baseline(bands, intensities, num_iters=8, num_ranges=64):

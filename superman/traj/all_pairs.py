@@ -1,19 +1,20 @@
+from __future__ import absolute_import
 import numpy as np
 import os
-from utils import regenerate_cython
+
+from ..mp import get_map_fn
+from .utils import regenerate_cython
 
 # Re-gen the Cython file from the template if needed
 regenerate_cython(os.path.join(os.path.dirname(__file__), 'fast_lcss.pyx.in'))
 
 import pyximport
 pyximport.install()
-from fast_lcss import (
+from .fast_lcss import (
     traj_match, traj_combo,
     traj_match_min, traj_combo_min,
     traj_match_full, traj_combo_full
 )
-
-from superman.mp import get_map_fn
 
 
 # TODO: move this and the pyximport stuff to a different file

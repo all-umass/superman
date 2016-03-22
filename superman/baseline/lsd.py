@@ -1,8 +1,9 @@
+from __future__ import absolute_import
 import numpy as np
 from scipy.interpolate import UnivariateSpline
 from scipy.optimize import minimize_scalar
 from scipy.stats import anderson
-from common import Baseline
+from .common import Baseline
 
 
 def lsd_baseline(bands, intensities):

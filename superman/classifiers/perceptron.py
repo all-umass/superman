@@ -3,7 +3,7 @@ import numpy as np
 import warnings
 
 from time import time
-from itertools import cycle, izip
+from itertools import cycle, islice
 
 from sklearn.utils import gen_even_slices
 from sklearn.utils import shuffle
@@ -117,7 +117,7 @@ class BaseMLP(BaseEstimator):
     delta_o = np.empty((self.batch_size, self.n_outs))
 
     # main loop
-    for i, batch_slice in izip(xrange(n_iterations), cycle(batch_slices)):
+    for i, batch_slice in enumerate(islice(cycle(batch_slices), n_iterations)):
       self._forward(i, X, batch_slice, x_hidden, x_output)
       self._backward(i, X, y, batch_slice, x_hidden, x_output, delta_o, delta_h)
     return self

@@ -1,11 +1,12 @@
+from __future__ import absolute_import, print_function
 import numpy as np
 from collections import defaultdict
-
 from construct import (
     Array, Enum, LFloat32, LFloat64, Magic, OnDemand, Pointer, Container,
     RepeatUntil, String, Struct, Switch, ULInt16, ULInt32, If
 )
-from construct_utils import BitSplitter, FixedSizeCString, FunctionSwitch
+
+from .construct_utils import BitSplitter, FixedSizeCString, FunctionSwitch
 
 
 BlockType = BitSplitter(ULInt32('BlockType'),
@@ -109,20 +110,20 @@ def iter_blocks(opus_data):
 
 def prettyprint_opus(data):
   np.set_printoptions(precision=4, suppress=True)
-  print 'OPUS file, version', data.Version
-  print 'Parsed', data.CurrDirSize, 'directory blocks'
+  print('OPUS file, version', data.Version)
+  print('Parsed', data.CurrDirSize, 'directory blocks')
   for i, (label, d) in enumerate(iter_blocks(data)):
-    print i+1, label,
+    print(i+1, label, end=' ')
     if d.Block is None:
-      print '(bytes %d-%d)' % (d.DataPtr, d.DataPtr+d.BlockLength*4)
+      print('(bytes %d-%d)' % (d.DataPtr, d.DataPtr+d.BlockLength*4))
       continue
-    print ':'
+    print(':')
     if is_ParameterList(d):
       for p in d.Block[:-1]:  # Don't bother printing the END block.
-        print '   ', p.Name, p.Value
+        print('   ', p.Name, p.Value)
     else:
       foo = np.array(d.Block.value)
-      print '    data:', foo.shape, foo
+      print('    data:', foo.shape, foo)
 
 
 def plot_opus(data, title_pattern=''):
@@ -143,7 +144,7 @@ def plot_opus(data, title_pattern=''):
   for label, foo in plot_info.iteritems():
     y_type, title = label.split(' ', 1)
     if title_pattern not in title:
-      print 'Skipping "%s"' % title
+      print('Skipping "%s"' % title)
       continue
     params = foo['params']
     x_units = DXU_values[params['DXU']]

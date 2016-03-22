@@ -1,6 +1,7 @@
+from __future__ import absolute_import
 import numpy as np
 
-from common import PeakFinder, _filter_peaks
+from .common import PeakFinder, _filter_peaks
 
 
 class Threshold(PeakFinder):

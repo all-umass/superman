@@ -1,8 +1,8 @@
-from __future__ import print_function
+from __future__ import print_function, absolute_import
 import numpy as np
 import scipy.optimize
 
-from common import PeakFinder
+from .common import PeakFinder
 
 
 class BumpFit(PeakFinder):

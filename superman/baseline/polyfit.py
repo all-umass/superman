@@ -1,5 +1,6 @@
+from __future__ import absolute_import, print_function
 import numpy as np
-from common import Baseline
+from .common import Baseline
 
 
 def polyfit_baseline(bands, intensities, poly_order=5, num_stdv=3.,
@@ -23,7 +24,7 @@ def polyfit_baseline(bands, intensities, poly_order=5, num_stdv=3.,
       break
     fit_pts[mask] = baseline[mask]  # these points are peaks, discard
   else:
-    print "Warning: polyfit_baseline didn't converge in %d iters" % max_iter
+    print("Warning: polyfit_baseline didn't converge in", max_iter, "iters")
   return baseline
 
 

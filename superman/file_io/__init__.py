@@ -1,13 +1,15 @@
+from __future__ import absolute_import, print_function
 import numpy as np
+import warnings
 
-from opus import write_opus, parse_traj as parse_opus
-from rruff import write_rruff, parse as parse_rruff
-from spc import parse_traj as parse_spc
-from andor import parse_sif
+from .opus import write_opus, parse_traj as parse_opus
+from .rruff import write_rruff, parse as parse_rruff
+from .spc import parse_traj as parse_spc
+from .andor import parse_sif
 try:
-  from renishaw import parse_wxd
+  from .renishaw import parse_wxd
 except ImportError:
-  print 'WXD parsing disabled until metakit is installed'
+  warnings.warn('WXD parsing disabled until metakit is installed')
 
   def parse_wxd(f):
     raise NotImplementedError('WXD parsing relies on metakit')

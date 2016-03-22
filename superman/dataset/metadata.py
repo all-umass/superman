@@ -72,8 +72,9 @@ class NumericMetadata(_BaseMetadata):
         step = _choose_step(self.true_bounds[1] - self.true_bounds[0])
     self.step = step
 
-  def filter(self, (lb, ub)):
+  def filter(self, bounds):
     # Check for the trivial case: all within bounds
+    lb, ub = bounds
     tlb, tub = self.true_bounds
     if lb <= tlb and ub >= tub:
       return True

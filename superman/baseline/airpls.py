@@ -1,5 +1,6 @@
+from __future__ import absolute_import, print_function
 import numpy as np
-from common import WhittakerSmoother, Baseline
+from .common import WhittakerSmoother, Baseline
 
 
 def airpls_baseline(intensities, smoothness_param=100, max_iters=10,
@@ -24,7 +25,7 @@ def airpls_baseline(intensities, smoothness_param=100, max_iters=10,
     # Check convergence as a fraction of total intensity.
     conv = total_error / total_intensity
     if verbose:
-      print i, conv
+      print(i, conv)
     if conv < conv_thresh:
       break
     # Set peak weights to zero.
@@ -35,7 +36,7 @@ def airpls_baseline(intensities, smoothness_param=100, max_iters=10,
     w[0] = np.exp(i*baseline_error.min())
     w[-1] = w[0]
   else:
-    print 'airPLS did not converge in %d iterations' % max_iters
+    print('airPLS did not converge in', max_iters, 'iterations')
   return baseline
 
 

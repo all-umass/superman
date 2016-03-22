@@ -1,5 +1,6 @@
+from __future__ import absolute_import
 import scipy.signal
-from common import WhittakerSmoother, iterative_threshold, Baseline
+from .common import WhittakerSmoother, iterative_threshold, Baseline
 
 
 def fabc_baseline(intensities, dilation_param=50, smoothness_param=1e3):
