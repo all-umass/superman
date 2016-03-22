@@ -1,14 +1,16 @@
 #!/usr/bin/env python
+import os
 from glob import glob
 from setuptools import setup, find_packages, Extension
 
 try:
   from Cython.Build import cythonize
-  import numpy as np
+  from Cython.Tempita import Template
 except ImportError:
   use_cython = False
 else:
   use_cython = True
+
 
 setup_kwargs = dict(
     name='superman',
@@ -32,11 +34,24 @@ setup_kwargs = dict(
 )
 
 if use_cython:
+  # manually regenerate the .pyx file, because cythonize() can't handle it.
+  pyx_file = 'superman/traj/fast_lcss.pyx'
+  tpl_file = pyx_file + '.in'
+  refresh_pyx = (not os.path.exists(pyx_file) or
+                 os.path.getmtime(tpl_file) > os.path.getmtime(pyx_file))
+  if refresh_pyx:
+    tpl = Template.from_filename(tpl_file, encoding='utf-8')
+    with open(pyx_file, 'w') as fh:
+      fh.write(tpl.substitute())
+
   exts = [
-      Extension('*', ['superman/*.pyx'], include_dirs=[np.get_include()],
+      Extension('*', ['superman/_pdist.pyx'],
                 extra_compile_args=['-Ofast', '-fopenmp', '-march=native',
                                     '-Wno-unused-function'],
                 extra_link_args=['-Ofast', '-fopenmp', '-march=native']),
+      Extension('*', [pyx_file],
+                extra_compile_args=['-O3', '-march=native', '-ffast-math',
+                                    '-Wno-unused-function']),
   ]
   setup_kwargs['ext_modules'] = cythonize(exts)
 

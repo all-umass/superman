@@ -3,6 +3,12 @@ import numpy as np
 from sklearn.metrics import pairwise_distances as _sklearn_pdist
 from .traj.all_pairs import lcss_between, lcss_within
 
+try:
+  xrange
+except NameError:
+  # python3
+  xrange = range
+
 import pyximport
 pyximport.install()
 from . import _pdist
