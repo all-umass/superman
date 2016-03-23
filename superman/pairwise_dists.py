@@ -1,18 +1,15 @@
 from __future__ import absolute_import
 import numpy as np
-from sklearn.metrics import pairwise_distances as _sklearn_pdist
-from .traj.all_pairs import lcss_between, lcss_within
-
-try:
-  xrange
-except NameError:
-  # python3
-  xrange = range
+from .traj.all_pairs import lcss_between, lcss_within, xrange
 
 import pyximport
 pyximport.install()
 from . import _pdist
 score_pdist = _pdist.score_pdist
+
+__all__ = [
+    'pairwise_dists', 'pairwise_within', 'score_pdist', 'score_pdist_row'
+]
 
 
 def score_pdist_row(dana_dist, test_dist):
@@ -30,12 +27,13 @@ def pairwise_dists(A, B, metric, num_procs=1, min_window=0):
   if metric == 'control':
     return np.random.random((len(A), len(B)))
 
+  if metric == 'cosine':
+    metric, param = 'combo', 0
+  elif metric == 'l1':
+    metric, param = 'combo', 1
+
   # Check for the trajectory case
   if not hasattr(A, 'shape'):
-    if metric == 'cosine':
-      metric, param = 'combo', 0
-    elif metric == 'l1':
-      metric, param = 'combo', 1
     return lcss_between(A, B, metric, float(param), num_procs=num_procs,
                         min_window=min_window)
 
@@ -53,8 +51,7 @@ def pairwise_dists(A, B, metric, num_procs=1, min_window=0):
     _pdist.combo_between(A, B, w, D)
     return D
 
-  # Assume it's a sklearn metric.
-  return _sklearn_pdist(A, B, metric=metric)
+  raise ValueError('Invalid metric: %r' % metric)
 
 
 def pairwise_within(A, metric, num_procs=1, min_window=0):
@@ -66,12 +63,13 @@ def pairwise_within(A, metric, num_procs=1, min_window=0):
     np.fill_diagonal(D, 0)
     return (D+D.T)/2.0
 
+  if metric == 'cosine':
+    metric, param = 'combo', 0
+  elif metric == 'l1':
+    metric, param = 'combo', 1
+
   # Check for the trajectory case
   if not hasattr(A, 'shape'):
-    if metric == 'cosine':
-      metric, param = 'combo', 0
-    elif metric == 'l1':
-      metric, param = 'combo', 1
     return lcss_within(A, metric, float(param), num_procs=num_procs,
                        min_window=min_window)
 
@@ -87,31 +85,4 @@ def pairwise_within(A, metric, num_procs=1, min_window=0):
     _pdist.combo_within(A, w, D)
     return D
 
-  if metric == 'windowed':
-    return windowed_cosine(A, int(param))
-
-  # Assume it's a sklearn metric.
-  return _sklearn_pdist(A, metric=metric)
-
-
-def windowed_cosine(X, window):
-  n = X.shape[0]
-  kk = (n // window) + 1
-  Xn = X / np.linalg.norm(X, ord=2, axis=1)[:,None]
-  D = np.ones((n,n))
-  for i in xrange(n):
-    v1 = Xn[i]
-    for j in xrange(i+1,n):
-      v2 = Xn[j]
-      d = 0.0
-      for k in xrange(kk):
-        v1w = v1[k*window:(k+1)*window]
-        v2w = v2[k*window:(k+1)*window]
-        v1w = v1w / np.linalg.norm(v1w)
-        v2w = v2w / np.linalg.norm(v2w)
-        d += (v1w*v2w).sum()
-      D[i,j] = d
-      D[j,i] = d
-  D -= D.min()
-  D /= D.max()
-  return 1 - D
+  raise ValueError('Invalid metric: %r' % metric)

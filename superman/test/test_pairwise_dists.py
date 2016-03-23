@@ -4,57 +4,87 @@ import unittest
 
 from superman import pairwise_dists as pd
 
-METRICS = ['control', 'cosine', 'l1', 'l2', 'ms:0.5', 'combo:0.5']
-
 
 class PairwiseDists(unittest.TestCase):
   def setUp(self):
-    self.A = np.ascontiguousarray(np.linspace(0, 1, 10)[None])
-    self.B = np.ascontiguousarray(np.row_stack((np.sqrt(self.A), 1.1 * self.A)))
+    y = np.linspace(0, 1, 10)
+    vector_pair = (
+        np.ascontiguousarray(y[None]),
+        np.ascontiguousarray(np.row_stack((np.sqrt(y), 1.1 * y)))
+    )
+    bands = np.arange(len(y))
+    traj_pair = (
+        [np.column_stack((bands, y)).astype(np.float32, order='C')],
+        [np.column_stack((bands, np.sqrt(y))).astype(np.float32, order='C'),
+         np.column_stack((bands, 1.1*y)).astype(np.float32, order='C')]
+    )
+    self.input_pairs = (vector_pair, traj_pair)
 
   def test_cosine_metric(self):
-    D = pd.pairwise_dists(self.A, self.B, 'cosine', num_procs=1, min_window=0)
-    assert_array_almost_equal(D, [[0.019409, 0]])
-    # combo:0 is cosine-like, though it's negated and doesn't normalize
-    D = pd.pairwise_dists(self.A, self.B, 'combo:0', num_procs=1, min_window=0)
-    assert_array_almost_equal(D, [[-4.112946, -3.87037]])
+    expected = [[0.019409, 0]]
+    for A, B in self.input_pairs:
+      D = pd.pairwise_dists(A, B, 'cosine', num_procs=1, min_window=0)
+      assert_array_almost_equal(D, expected)
+      D = pd.pairwise_dists(A, B, 'combo:0', num_procs=1, min_window=0)
+      assert_array_almost_equal(D, expected)
 
   def test_l1_metric(self):
-    expected = [[1.435334, 0.5]]
-    D = pd.pairwise_dists(self.A, self.B, 'l1', num_procs=1, min_window=0)
-    assert_array_almost_equal(D, expected)
-    D = pd.pairwise_dists(self.A, self.B, 'combo:1', num_procs=1, min_window=0)
-    assert_array_almost_equal(D, expected)
+    expected = [[1.342206, 1.129187]]
+    for A, B in self.input_pairs:
+      D = pd.pairwise_dists(A, B, 'l1', num_procs=1, min_window=0)
+      assert_array_almost_equal(D, expected)
+      D = pd.pairwise_dists(A, B, 'combo:1', num_procs=1, min_window=0)
+      assert_array_almost_equal(D, expected)
 
   def test_ms_metric(self):
-    D = pd.pairwise_dists(self.A, self.B, 'ms:0', num_procs=1, min_window=0)
-    assert_array_almost_equal(D, [[5, 5]])
-    D = pd.pairwise_dists(self.A, self.B, 'ms:0.5', num_procs=1, min_window=0)
-    assert_array_almost_equal(D, [[1.818657, 0.734404]])
-    D = pd.pairwise_dists(self.A, self.B, 'ms:1', num_procs=1, min_window=0)
-    assert_array_almost_equal(D, [[0.840906, 0.148148]])
+    for A, B in self.input_pairs:
+      D = pd.pairwise_dists(A, B, 'ms:0', num_procs=1, min_window=0)
+      assert_array_almost_equal(D, [[1, 1]])
+      D = pd.pairwise_dists(A, B, 'ms:0.5', num_procs=1, min_window=0)
+      assert_array_almost_equal(D, [[1.835655, 1.955819]])
+      D = pd.pairwise_dists(A, B, 'ms:1', num_procs=1, min_window=0)
+      assert_array_almost_equal(D, [[2.050358, 2.200957]])
 
 
 class PairwiseWithin(unittest.TestCase):
   def setUp(self):
-    A = np.linspace(0, 1, 10)
-    self.A = np.ascontiguousarray(np.row_stack((A, np.sqrt(A), 1.1 * A)))
+    y = np.linspace(0, 1, 10)
+    vector = np.ascontiguousarray(np.row_stack((y, np.sqrt(y), 1.1 * y)))
+    bands = np.arange(len(y))
+    traj = [
+        np.column_stack((bands, vector[0])).astype(np.float32, order='C'),
+        np.column_stack((bands, vector[1])).astype(np.float32, order='C'),
+        np.column_stack((bands, vector[2])).astype(np.float32, order='C'),
+    ]
+    self.input_data = (vector, traj)
 
   def test_cosine_metric(self):
-    D = pd.pairwise_within(self.A, 'cosine', num_procs=1, min_window=0)
     d01, d02, d12 = 0.019409, 0, 0.019409
-    assert_array_almost_equal(D, [[0, d01, d02], [d01, 0, d12], [d02, d12, 0]])
-    # combo:0 is cosine-like, though it's negated and doesn't normalize
-    D = pd.pairwise_within(self.A, 'combo:0', num_procs=1, min_window=0)
-    d01, d02, d12 = -4.112946, -3.87037, -4.52424
-    assert_array_almost_equal(D, [[0, d01, d02], [d01, 0, d12], [d02, d12, 0]])
+    expected = [[0, d01, d02], [d01, 0, d12], [d02, d12, 0]]
+    for A in self.input_data:
+      D = pd.pairwise_within(A, 'cosine', num_procs=1, min_window=0)
+      assert_array_almost_equal(D, expected)
+      D = pd.pairwise_within(A, 'combo:0', num_procs=1, min_window=0)
+      assert_array_almost_equal(D, expected)
 
   def test_l1_metric(self):
-    D = pd.pairwise_within(self.A, 'l1', num_procs=1, min_window=0)
-    d01, d02, d12 = 1.435334, 0.5, 1.205271
-    assert_array_almost_equal(D, [[0, d01, d02], [d01, 0, d12], [d02, d12, 0]])
-    D = pd.pairwise_within(self.A, 'combo:1', num_procs=1, min_window=0)
-    assert_array_almost_equal(D, [[0, d01, d02], [d01, 0, d12], [d02, d12, 0]])
+    d01, d02, d12 = 1.342206, 1.129187, 1.261232
+    expected = [[0, d01, d02], [d01, 0, d12], [d02, d12, 0]]
+    for A in self.input_data:
+      D = pd.pairwise_within(A, 'l1', num_procs=1, min_window=0)
+      assert_array_almost_equal(D, expected)
+      D = pd.pairwise_within(A, 'combo:1', num_procs=1, min_window=0)
+      assert_array_almost_equal(D, expected)
+
+  def test_ms_metric(self):
+    expected_ms0 = 1 - np.eye(3)
+    d01, d02, d12 = 2.050358, 2.200957, 2.04492
+    expected_ms1 = [[0, d01, d02], [d01, 0, d12], [d02, d12, 0]]
+    for A in self.input_data:
+      D = pd.pairwise_within(A, 'ms:0', num_procs=1, min_window=0)
+      assert_array_almost_equal(D, expected_ms0)
+      D = pd.pairwise_within(A, 'ms:1', num_procs=1, min_window=0)
+      assert_array_almost_equal(D, expected_ms1)
 
 
 class ScorePDist(unittest.TestCase):

@@ -2,7 +2,7 @@
 # cython: wraparound=False
 # cython: nonecheck=False
 from cython.parallel import prange
-from libc.math cimport fmin, fabs
+from libc.math cimport fmin, fabs, sqrt
 
 cpdef void match_between(double[:,::1] query, double[:,::1] target,
                          double exp, double[:,::1] dist) nogil:
@@ -53,22 +53,30 @@ cpdef void combo_within(double[:,::1] spectra, double w,
 
 cdef inline double score_match(double[::1] spec1, double[::1] spec2,
                                double exp, Py_ssize_t n) nogil:
-  cdef double score = 0.0
+  cdef double score = 0.0, ssa = 0.0, ssb = 0.0, a, b
   cdef Py_ssize_t k
   for k in range(n):
-    score += ms(spec1[k], spec2[k], exp)
-  return score
+    a = spec1[k]
+    b = spec2[k]
+    score += ms(a, b, exp)
+    ssa += a * a
+    ssb += b * b
+  return score / sqrt(ssa * ssb) + 1
 
 cdef inline double score_combo(double[::1] spec1, double[::1] spec2,
                                double w, Py_ssize_t n) nogil:
-  cdef double score = 0.0
+  cdef double score = 0.0, ssa = 0.0, ssb = 0.0, a, b
   cdef Py_ssize_t k
   for k in range(n):
-    score += combo(spec1[k], spec2[k], w)
-  return score
+    a = spec1[k]
+    b = spec2[k]
+    score += combo(a, b, w)
+    ssa += a * a
+    ssb += b * b
+  return score / sqrt(ssa * ssb) + 1
 
 cdef inline double ms(double ay, double by, double exp) nogil:
-  return (1 - fmin(ay, by)) * fabs(ay - by) ** exp
+  return fmin(ay, by) * (1.0 - fabs(ay - by) ** exp)
 
 cdef inline double combo(double ay, double by, double w) nogil:
   return w * fabs(ay - by) - (1 - w) * (ay * by)

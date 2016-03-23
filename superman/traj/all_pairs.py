@@ -5,6 +5,12 @@ import os
 from ..mp import get_map_fn
 from .utils import regenerate_cython
 
+try:
+  xrange
+except NameError:
+  # python3
+  xrange = range
+
 # Re-gen the Cython file from the template if needed
 regenerate_cython(os.path.join(os.path.dirname(__file__), 'fast_lcss.pyx.in'))
 
@@ -81,7 +87,7 @@ def _fill_matrix(traj_pairs, idx_pairs, S_shape, metric, num_procs, min_window,
 
   mapper = get_map_fn(num_procs, use_threads=False)
   # Note: sim is actually a distance measure
-  sim = mapper(score_fn, traj_pairs)
+  sim = list(mapper(score_fn, traj_pairs))
 
   if idx_pairs is None:
     return np.array(sim)
