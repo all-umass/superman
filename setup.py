@@ -35,7 +35,7 @@ setup_kwargs = dict(
 
 if use_cython:
   # manually regenerate the .pyx file, because cythonize() can't handle it.
-  pyx_file = 'superman/traj/fast_lcss.pyx'
+  pyx_file = 'superman/distance/fast_lcss.pyx'
   tpl_file = pyx_file + '.in'
   refresh_pyx = (not os.path.exists(pyx_file) or
                  os.path.getmtime(tpl_file) > os.path.getmtime(pyx_file))
@@ -45,7 +45,7 @@ if use_cython:
       fh.write(tpl.substitute())
 
   exts = [
-      Extension('*', ['superman/_pdist.pyx'],
+      Extension('*', ['superman/distance/_pdist.pyx'],
                 extra_compile_args=['-Ofast', '-fopenmp', '-march=native',
                                     '-Wno-unused-function'],
                 extra_link_args=['-Ofast', '-fopenmp', '-march=native']),

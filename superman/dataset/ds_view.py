@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 import numpy as np
 
-from ..traj.all_pairs import lcss_search, lcss_full
+from ..distance.all_pairs import lcss_search, lcss_full
 
 
 class DatasetView(object):

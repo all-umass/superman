@@ -1,8 +1,9 @@
+from __future__ import absolute_import
 import numpy as np
 from numpy.testing import assert_array_equal, assert_array_almost_equal
 import unittest
 
-from superman import pairwise_dists as pd
+from .. import pairwise_dists as pd
 
 
 class PairwiseDists(unittest.TestCase):

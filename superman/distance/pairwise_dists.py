@@ -1,6 +1,6 @@
 from __future__ import absolute_import
 import numpy as np
-from .traj.all_pairs import lcss_between, lcss_within, xrange
+from .all_pairs import lcss_between, lcss_within, xrange
 
 import pyximport
 pyximport.install()
