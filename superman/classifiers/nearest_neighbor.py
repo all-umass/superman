@@ -3,7 +3,7 @@ import numpy as np
 from itertools import product as cart_product
 from time import time
 
-from ..distance.pairwise_dists import pairwise_dists
+from ..distance import pairwise_dists
 from .utils import ClassifyResult
 
 

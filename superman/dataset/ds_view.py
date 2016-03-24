@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 import numpy as np
 
-from ..distance.pairwise_dists import library_search, per_channel_scores
+from ..distance import library_search, per_channel_scores
 
 
 class DatasetView(object):

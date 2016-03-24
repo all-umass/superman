@@ -3,7 +3,7 @@ import numpy as np
 from numpy.testing import assert_array_equal, assert_array_almost_equal
 import unittest
 
-from .. import pairwise_dists as pd
+from ... import distance as pd
 
 # static test fixture data
 y = np.linspace(0, 1, 10)

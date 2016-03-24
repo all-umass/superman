@@ -4,10 +4,9 @@ from matplotlib import pyplot
 from scipy.stats import gaussian_kde as gkde
 from viztricks import violinplot, axes_grid, plot, imagesc
 
-from . import dana
-from . import options
+from . import dana, options
 from .rruff_data import load_dataset, dataset_views
-from .pairwise_dists import pairwise_within, score_pdist
+from .distance import pairwise_within, score_pdist
 
 
 def _show_conf(D, names, plot_title):

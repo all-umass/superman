@@ -31,7 +31,8 @@ setup_kwargs = dict(
         'construct >= 2.5.2',
         'Cython >= 0.20',
         'viztricks >= 0.1',
-        'six',
+        'six >= 1.10.0',
+        'h5py >= 2.5.0',
     ],
     scripts=glob('scripts/*.py'),
 )
@@ -47,15 +48,18 @@ if use_cython:
     with open(pyx_file, 'w') as fh:
       fh.write(tpl.substitute())
 
+  extra_args = [
+      '-Ofast', '-march=native', '-ffast-math', '-Wno-unused-function'
+  ]
   exts = [
       Extension('*', ['superman/distance/_pdist.pyx',
                       'superman/distance/common.pyx'],
-                extra_compile_args=['-Ofast', '-fopenmp', '-march=native',
-                                    '-Wno-unused-function'],
+                extra_compile_args=['-fopenmp'] + extra_args,
                 extra_link_args=['-Ofast', '-fopenmp', '-march=native']),
       Extension('*', [pyx_file, 'superman/distance/common.pyx'],
-                extra_compile_args=['-Ofast', '-march=native', '-ffast-math',
-                                    '-Wno-unused-function']),
+                extra_compile_args=extra_args),
+      Extension('*', ['superman/distance/common.pyx'],
+                extra_compile_args=extra_args),
   ]
   setup_kwargs['ext_modules'] = cythonize(exts)
 

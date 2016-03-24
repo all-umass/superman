@@ -1,5 +1,4 @@
 *.pyc
-*.pyxbldc
 *.egg-info
 *.c
 *.so
