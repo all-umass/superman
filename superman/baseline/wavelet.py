@@ -1,9 +1,5 @@
 from __future__ import absolute_import
-try:
-  import pywt
-except ImportError:
-  import warnings
-  warnings.warn('Failed to import pywavelets(pywt). wavelet_baseline will fail')
+import pywt
 from .common import Baseline
 
 

@@ -1,18 +1,16 @@
 from __future__ import absolute_import, print_function
 import numpy as np
 from numpy.polynomial.hermite import hermvander
+from six.moves import xrange
 from .common import Baseline
+
 try:
   from cvxopt import matrix as cvx_matrix, solvers
-  HAS_CVXOPT = True
 except ImportError:
-  cvx_matrix, solvers = None, None
+  from scipy.optimize import linprog
   HAS_CVXOPT = False
-  try:
-    from scipy.optimize import linprog
-  except ImportError:
-    print('\nError: Use scipy >= 0.15 or install cvxopt\n')
-    raise
+else:
+  HAS_CVXOPT = True
 
 np.set_printoptions(precision=4, suppress=True)
 _callback_state = {'last_nit':0, 'last_phase':0}
