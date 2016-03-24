@@ -150,7 +150,7 @@ class CompositionMetadata(_BaseMetadata):
     assert len(comps) > 0, 'Must provide at least one composition'
     # Validate
     comp_sizes = []
-    for name, m in comps.iteritems():
+    for name, m in comps.items():
       if not isinstance(m, NumericMetadata):
         raise ValueError('composition %r (%r) is not NumericMetadata' %
                          (name, type(m)))
@@ -164,7 +164,7 @@ class CompositionMetadata(_BaseMetadata):
 
   def filter(self, sub_conds):
     sub_filters = (self.comps[key].filter(cond)
-                   for key, cond in sub_conds.iteritems())
+                   for key, cond in sub_conds.items())
     return reduce(operator.and_, sub_filters)
 
 

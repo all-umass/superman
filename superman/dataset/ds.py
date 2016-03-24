@@ -17,7 +17,7 @@ class Dataset(object):
   def set_metadata(self, metadata_dict):
     self.metadata = metadata_dict
     # do a little metadata validation
-    for key, m in self.metadata.iteritems():
+    for key, m in self.metadata.items():
       if not is_metadata(m):
         raise ValueError('%r is not a valid Metadata' % key)
       if self.pkey is not None and isinstance(m, PrimaryKeyMetadata):
@@ -25,7 +25,7 @@ class Dataset(object):
 
   def filter_metadata(self, filter_conditions):
     mask = np.ones(self.num_spectra(), dtype=bool)
-    for key, cond in filter_conditions.iteritems():
+    for key, cond in filter_conditions.items():
       if key == 'pkey':
         mask &= self.pkey.filter(cond)
       else:
@@ -63,7 +63,7 @@ class TrajDataset(Dataset):
       assert s[0,0] <= s[1,0], 'Backwards bands in %s: %s' % (self, key)
     # make sure all our shapes match
     n = self.num_spectra()
-    for k, m in self.metadata.iteritems():
+    for k, m in self.metadata.items():
       if m.size() != n:
         raise ValueError('Mismatching size for %s' % m.display_name(k))
 
@@ -150,7 +150,7 @@ class VectorDataset(Dataset):
     self.pkey = pkey
     # make sure all our shapes match
     n = self.num_spectra()
-    for k, m in self.metadata.iteritems():
+    for k, m in self.metadata.items():
       if m.size() != n:
         raise ValueError('Mismatching size for %s' % m.display_name(k))
 
