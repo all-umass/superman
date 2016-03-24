@@ -3,7 +3,7 @@ import numpy as np
 from six.moves import xrange
 
 from ..mp import get_map_fn
-from .fast_lcss import (
+from ._traj import (
     traj_match, traj_combo,
     traj_match_min, traj_combo_min,
     traj_match_full, traj_combo_full
@@ -25,7 +25,7 @@ def pairwise_dists(A, B, metric, num_procs=1, min_window=0):
 
   # trajectory data (two lists of Nx2 arrays)
   if not hasattr(A, 'shape'):
-    return _lcss_between(A, B, metric, float(param), num_procs=num_procs,
+    return _traj_between(A, B, metric, float(param), num_procs=num_procs,
                          min_window=min_window)
 
   # vector data (two NxD arrays)
@@ -47,7 +47,7 @@ def pairwise_within(A, metric, num_procs=1, min_window=0):
 
   # trajectory data (two lists of Nx2 arrays)
   if not hasattr(A, 'shape'):
-    return _lcss_within(A, metric, float(param), num_procs=num_procs,
+    return _traj_within(A, metric, float(param), num_procs=num_procs,
                         min_window=min_window)
 
   # vector data (two NxD arrays)
@@ -100,7 +100,7 @@ def _parse_metric(metric):
   return metric, float(param)
 
 
-def _lcss_within(traj, metric, param, num_procs=1, min_window=0):
+def _traj_within(traj, metric, param, num_procs=1, min_window=0):
   a_window = np.zeros(min_window, dtype=np.float32)
   b_window = np.zeros(min_window, dtype=np.float32)
   traj_pairs = []
@@ -117,7 +117,7 @@ def _lcss_within(traj, metric, param, num_procs=1, min_window=0):
   return S + S.T
 
 
-def _lcss_between(traj1, traj2, metric, param, num_procs=1, min_window=0):
+def _traj_between(traj1, traj2, metric, param, num_procs=1, min_window=0):
   a_window = np.zeros(min_window, dtype=np.float32)
   b_window = np.zeros(min_window, dtype=np.float32)
   traj_pairs = []
