@@ -23,6 +23,7 @@ setup_kwargs = dict(
     url='https://github.com/all-umass/superman',
     license='MIT',
     packages=find_packages(exclude=['test', '*.test', '*.test.*']),
+    package_data=dict(superman=['dana_numbers.txt']),
     install_requires=[
         'numpy',
         'scipy',
