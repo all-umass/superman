@@ -1,10 +1,7 @@
 from __future__ import print_function
 import os.path
 import numpy as np
-try:
-  from itertools import izip as zip
-except ImportError:
-  pass  # must be Python 3, where zip ~= izip
+from six.moves import zip
 
 
 def convert_to_dana(mineral_names, mineral_ids=None,

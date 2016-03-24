@@ -1,4 +1,3 @@
-from __future__ import absolute_import
 import numpy as np
 import scipy.signal
 import scipy.sparse
@@ -148,47 +147,3 @@ def _smooth(S, window, order):
   S = scipy.signal.savgol_filter(S, int(window), int(order), deriv=0)
   # get rid of any non-positives created by the smoothing
   return np.maximum(S, 1e-10)
-
-
-def debug(before, after, legend=True):
-  from matplotlib import pyplot as plt
-  fig, (ax1, ax2) = plt.subplots(nrows=2, sharex=True)
-  lines = []
-  traj1, labels = before.get_trajectories(return_keys=True)
-  traj2 = after.get_trajectories()
-  for t1, t2 in zip(traj1, traj2):
-    line, = ax1.plot(*t1.T)
-    line_color = plt.getp(line, 'color')
-    ax2.plot(*t2.T, color=line_color)
-    lines.append(line)
-  if legend:
-    fig.legend(lines, labels, 'right')
-  ax1.yaxis.set_ticks([])
-  ax2.yaxis.set_ticks([])
-  plt.xlabel('Wavenumber (1/cm)')
-  plt.show()
-
-
-def main():
-  from . import options
-  from .rruff_data import load_dataset, dataset_views
-
-  op = options.setup_common_opts()
-  op.add_argument('--debug', type=str, nargs='+', default=['Trolleite'],
-                  help='Species name(s) to show before/after. %(default)s')
-  op.add_argument('--no-legend', action='store_false', dest='legend', default=1)
-  options.add_preprocess_opts(op)
-  opts = options.parse_opts(op, lasers=False)
-  options.validate_preprocess_opts(op, opts)
-  if len(opts.pp) == 1 and opts.pp[0] != '':
-    opts.pp.insert(0, '')
-  if len(opts.pp) != 2:
-    op.error('Must provide 1 or 2 --pp sequences for before/after plot')
-
-  ds = load_dataset(opts)
-  before, after = list(dataset_views(ds, opts, minerals=opts.debug))
-  debug(before, after, legend=opts.legend)
-
-
-if __name__ == '__main__':
-  main()
