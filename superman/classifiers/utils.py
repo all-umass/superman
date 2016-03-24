@@ -1,6 +1,7 @@
 from __future__ import print_function, absolute_import
 import numpy as np
 from collections import namedtuple
+from six.moves import xrange
 
 from .. import dana
 

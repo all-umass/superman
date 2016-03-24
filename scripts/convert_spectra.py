@@ -1,9 +1,13 @@
 #!/usr/bin/python
 import os.path
-import itertools
 from argparse import ArgumentParser
 from multiprocessing import Pool
 from superman.file_io import parse_spectrum, write_opus, write_rruff
+
+try:
+  from itertools import imap
+except ImportError:
+  imap = map
 
 
 def _parse(infile):
@@ -22,8 +26,6 @@ def main():
 
   if args.procs > 1:
     imap = Pool(args.procs).imap_unordered
-  else:
-    imap = itertools.imap
 
   writer = writers[args.fmt]
   ext = extensions[args.fmt]

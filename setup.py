@@ -22,7 +22,7 @@ setup_kwargs = dict(
     description='Spectrum preprocessing machine.',
     url='https://github.com/all-umass/superman',
     license='MIT',
-    packages=find_packages(),
+    packages=find_packages(exclude=['test', '*.test', '*.test.*']),
     install_requires=[
         'numpy',
         'scipy',
@@ -49,7 +49,8 @@ if use_cython:
       fh.write(tpl.substitute())
 
   extra_args = [
-      '-Ofast', '-march=native', '-ffast-math', '-Wno-unused-function'
+      '-Ofast', '-march=native', '-ffast-math', '-Wno-unused-function',
+      '-Wno-unreachable-code'
   ]
   exts = [
       Extension('*', ['superman/distance/_pdist.pyx',

@@ -10,14 +10,14 @@ class BitSplitter(Adapter):
 
   def _encode(self, obj, ctx):
     num = 0
-    for name, (offset, size) in self.fields.iteritems():
+    for name, (offset, size) in self.fields.items():
       val = getattr(obj, name) & (2**size-1)
       num |= val << offset
     return num
 
   def _decode(self, obj, ctx):
     c = Container()
-    for name, (offset, size) in self.fields.iteritems():
+    for name, (offset, size) in self.fields.items():
       setattr(c, name, (obj >> offset) & (2**size-1))
     return c
 

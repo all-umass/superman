@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 import numpy as np
 from scipy.spatial import ConvexHull
+from six.moves import xrange
 from .common import Baseline
 
 
@@ -12,7 +13,7 @@ def rubberband_baseline(bands, intensities, num_iters=8, num_ranges=64):
     x_center = (bands[-1] - bands[0]) / 2.
     tmp = (bands - x_center) ** 2
     y += yrange/10. * tmp / tmp[-1]
-  baseline = _rubberband(bands, y, num_ranges)
+  baseline = _rubberband(bands, y, min(num_ranges, len(bands) // 2))
   # undo the n steps of convex function addition
   baseline -= (y - intensities)
   return baseline

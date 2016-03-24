@@ -141,7 +141,7 @@ def plot_opus(data, title_pattern=''):
       'WN': 'Wavenumber (1/cm)', 'MI': 'Micron', 'LGW': 'log Wavenumber',
       'MIN': 'Minutes', 'PNT': 'Points'
   }
-  for label, foo in plot_info.iteritems():
+  for label, foo in plot_info.items():
     y_type, title = label.split(' ', 1)
     if title_pattern not in title:
       print('Skipping "%s"' % title)

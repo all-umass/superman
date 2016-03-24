@@ -31,8 +31,8 @@ def gauss_test(Xtrain, Ytrain, Xtest, pp, opts):
     c_means[i] = points.mean(axis=0)
     c_stds[i] = np.maximum(points.std(axis=0), 1e-10)
 
-  for j in xrange(len(classes)):
-    distribution = normal_dist(c_means[j], c_stds[j])
+  for j,c_mean in enumerate(c_means):
+    distribution = normal_dist(c_mean, c_stds[j])
     for i,test in enumerate(Xtest):
       proba[i,j] = distribution.pdf(test).dot(test)
 

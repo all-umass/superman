@@ -1,5 +1,6 @@
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function
 import numpy as np
+from six.moves import xrange
 
 from . import options
 from .classifiers import knn_test, CLASSIFIERS
@@ -12,9 +13,9 @@ def _classify_oneshot(ds, opts):
   test_fn = CLASSIFIERS[opts.clf]
   if opts.tsv:
     if opts.dana:
-      print '# Title\tTime\tRank\tClass\tType\tGroup\tSpecies\tTotal'
+      print('# Title\tTime\tRank\tClass\tType\tGroup\tSpecies\tTotal')
     else:
-      print '# Title\tTime\tRank\tScore\tTotal'
+      print('# Title\tTime\tRank\tScore\tTotal')
   label_meta, _ = ds.find_metadata('minerals')
   label_map = label_meta.labels
   example_view = next(dataset_views(ds, opts))

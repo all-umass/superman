@@ -193,7 +193,7 @@ if __name__ == '__main__':
         spectra = wxd.load_spectrum(all_trajs=True, verbose=args.verbose)
         plt.figure()
         plt.title(os.path.basename(f.name))
-        for label, traj in spectra.iteritems():
+        for label, traj in spectra.items():
           plt.plot(*traj.T, label=label)
         plt.legend()
     if args.plot:

@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.linalg import solveh_banded
+from six.moves import xrange
 
 
 class Baseline(object):

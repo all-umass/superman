@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 import numpy as np
+from six.moves import xrange
 from .common import Baseline
 
 

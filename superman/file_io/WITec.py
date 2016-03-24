@@ -6,6 +6,7 @@ from construct import (
     OneOf, If, RepeatUntil, Field, LFloat64, LFloat32, SLInt32, Switch,
     LazyBound, ULInt8, Anchor, Padding
 )
+from six.moves import xrange
 
 WIPTagType = Enum(
     ULInt32('type'),
@@ -178,7 +179,7 @@ def extract_spectra(fh):
       tdata, _, xtrans = map(taglist2dict, data_tags[idx+1].data)
       xtrans_map[tdata['ID']] = xtrans
 
-  for name, tdgraph in tdgraphs.iteritems():
+  for name, tdgraph in tdgraphs.items():
     num_pts = tdgraph['SizeGraph']
     ydata = dict(map(parse_tag, tdgraph['GraphData']))['Data']
     ydata = np.array(ydata, dtype=np.uint8).view(np.float32)
