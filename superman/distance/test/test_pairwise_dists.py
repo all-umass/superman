@@ -5,21 +5,17 @@ import unittest
 
 from .. import pairwise_dists as pd
 
+# static test fixture data
+y = np.linspace(0, 1, 10)
+bands = np.arange(len(y))
+vectors = np.ascontiguousarray(np.row_stack((y, np.sqrt(y), 1.1 * y)))
+trajs = [np.column_stack((bands, x)).astype(np.float32, order='C')
+         for x in (y, np.sqrt(y), 1.1 * y)]
+
 
 class PairwiseDists(unittest.TestCase):
   def setUp(self):
-    y = np.linspace(0, 1, 10)
-    vector_pair = (
-        np.ascontiguousarray(y[None]),
-        np.ascontiguousarray(np.row_stack((np.sqrt(y), 1.1 * y)))
-    )
-    bands = np.arange(len(y))
-    traj_pair = (
-        [np.column_stack((bands, y)).astype(np.float32, order='C')],
-        [np.column_stack((bands, np.sqrt(y))).astype(np.float32, order='C'),
-         np.column_stack((bands, 1.1*y)).astype(np.float32, order='C')]
-    )
-    self.input_pairs = (vector_pair, traj_pair)
+    self.input_pairs = ((vectors[:1], vectors[1:]), (trajs[:1], trajs[1:]))
 
   def test_cosine_metric(self):
     expected = [[0.019409, 0]]
@@ -49,15 +45,7 @@ class PairwiseDists(unittest.TestCase):
 
 class PairwiseWithin(unittest.TestCase):
   def setUp(self):
-    y = np.linspace(0, 1, 10)
-    vector = np.ascontiguousarray(np.row_stack((y, np.sqrt(y), 1.1 * y)))
-    bands = np.arange(len(y))
-    traj = [
-        np.column_stack((bands, vector[0])).astype(np.float32, order='C'),
-        np.column_stack((bands, vector[1])).astype(np.float32, order='C'),
-        np.column_stack((bands, vector[2])).astype(np.float32, order='C'),
-    ]
-    self.input_data = (vector, traj)
+    self.input_data = (vectors, trajs)
 
   def test_cosine_metric(self):
     d01, d02, d12 = 0.019409, 0, 0.019409
@@ -86,6 +74,45 @@ class PairwiseWithin(unittest.TestCase):
       assert_array_almost_equal(D, expected_ms0)
       D = pd.pairwise_within(A, 'ms:1', num_procs=1, min_window=0)
       assert_array_almost_equal(D, expected_ms1)
+
+
+class PerChannelScores(unittest.TestCase):
+  def setUp(self):
+    self.A, self.B = trajs[:2]
+
+  def test_cosine_metric(self):
+    expected = -y * np.sqrt(y)
+    x = pd.per_channel_scores(self.A, self.B, 'cosine')
+    assert_array_almost_equal(x, expected)
+    x = pd.per_channel_scores(self.A, self.B, 'combo:0')
+    assert_array_almost_equal(x, expected)
+
+  def test_l1_metric(self):
+    expected = np.sqrt(y) - y
+    x = pd.per_channel_scores(self.A, self.B, 'l1')
+    assert_array_almost_equal(x, expected)
+    x = pd.per_channel_scores(self.A, self.B, 'combo:1')
+    assert_array_almost_equal(x, expected)
+
+
+class LibrarySearch(unittest.TestCase):
+  def setUp(self):
+    self.query = trajs[0]
+    self.library = trajs[1:]
+
+  def test_cosine_metric(self):
+    expected = [-0.980591, -1]
+    x = pd.library_search(self.query, self.library, 'cosine', num_procs=1)
+    assert_array_almost_equal(x, expected)
+    x = pd.library_search(self.query, self.library, 'combo:0', num_procs=1)
+    assert_array_almost_equal(x, expected)
+
+  def test_l1_metric(self):
+    expected = [0.342206, 0.129187]
+    x = pd.library_search(self.query, self.library, 'l1', num_procs=1)
+    assert_array_almost_equal(x, expected)
+    x = pd.library_search(self.query, self.library, 'combo:1', num_procs=1)
+    assert_array_almost_equal(x, expected)
 
 
 class ScorePDist(unittest.TestCase):

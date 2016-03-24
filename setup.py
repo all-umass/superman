@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import os
+import warnings
 from glob import glob
 from setuptools import setup, find_packages, Extension
 
@@ -8,6 +9,7 @@ try:
   from Cython.Tempita import Template
 except ImportError:
   use_cython = False
+  warnings.warn('Cython not detected. Re-run setup.py after it is installed.')
 else:
   use_cython = True
 
@@ -29,6 +31,7 @@ setup_kwargs = dict(
         'construct >= 2.5.2',
         'Cython >= 0.20',
         'viztricks >= 0.1',
+        'six',
     ],
     scripts=glob('scripts/*.py'),
 )
@@ -45,12 +48,13 @@ if use_cython:
       fh.write(tpl.substitute())
 
   exts = [
-      Extension('*', ['superman/distance/_pdist.pyx'],
+      Extension('*', ['superman/distance/_pdist.pyx',
+                      'superman/distance/common.pyx'],
                 extra_compile_args=['-Ofast', '-fopenmp', '-march=native',
                                     '-Wno-unused-function'],
                 extra_link_args=['-Ofast', '-fopenmp', '-march=native']),
-      Extension('*', [pyx_file],
-                extra_compile_args=['-O3', '-march=native', '-ffast-math',
+      Extension('*', [pyx_file, 'superman/distance/common.pyx'],
+                extra_compile_args=['-Ofast', '-march=native', '-ffast-math',
                                     '-Wno-unused-function']),
   ]
   setup_kwargs['ext_modules'] = cythonize(exts)

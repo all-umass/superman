@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 import numpy as np
 
-from ..distance.all_pairs import lcss_search, lcss_full
+from ..distance.pairwise_dists import library_search, per_channel_scores
 
 
 class DatasetView(object):
@@ -73,16 +73,14 @@ class DatasetView(object):
     return line
 
   def whole_spectrum_search(self, query, num_endmembers=1, num_results=10,
-                            metric='combo', param=0, num_procs=5,
-                            min_window=0, score_pct=1, method='sub'):
+                            metric='combo:0', num_procs=5, min_window=0,
+                            score_pct=1, method='sub'):
     # neurotic error checking
     if self.ds.pkey is None:
       raise ValueError('%s has no primary key, cannot search.' % self.ds)
     if not (0 < num_endmembers < 10):
       raise ValueError('Invalid number of mixture components: %d' %
                        num_endmembers)
-    if not (0 <= param <= 1):
-      raise ValueError('Invalid WSM parameter: %f' % param)
     if not (0 <= min_window <= 1000):
       raise ValueError('Invalid min window size: %d' % min_window)
     if not (0 < score_pct < 100):
@@ -104,16 +102,16 @@ class DatasetView(object):
     # run the search
     num_sub_results = int(np.ceil(num_results ** (1./num_endmembers)))
     res = _cs_helper(query, library, names, num_endmembers, num_sub_results,
-                     metric, param, num_procs, min_window, score_pct, method)
+                     metric, num_procs, min_window, score_pct, method)
     top_sim, top_names = zip(*sorted(res, reverse=True)[:num_results])
     return top_names, top_sim
 
 
 def _cs_helper(query, library, names, num_endmembers, num_results, metric,
-               param, num_procs, min_window, score_pct, method):
+               num_procs, min_window, score_pct, method):
   # calculate a vector of distances
-  dist = lcss_search(query, library, metric, param, num_procs=num_procs,
-                     min_window=min_window)
+  dist = library_search(query, library, metric, num_procs=num_procs,
+                        min_window=min_window)
   # rank the top k closest
   top_k = np.argsort(dist)[:num_results]
   top_sim = -(dist[top_k])
@@ -129,19 +127,19 @@ def _cs_helper(query, library, names, num_endmembers, num_results, metric,
         lib = [_add_spectrum(x, tmp) for x in library]
         # recurse
         for s2, n2 in _cs_helper(query, lib, names, num_endmembers-1,
-                                 num_results, metric, param, num_procs,
+                                 num_results, metric, num_procs,
                                  min_window, score_pct, method):
           yield s2, [name] + n2
       else:
         # get per-channel distance scores
-        scores = lcss_full(query, library[k], metric, param)
+        scores = per_channel_scores(query, library[k], metric)
         # remove the matching spectrum (where distance <= x%)
         mask = scores <= np.percentile(scores, score_pct)
         sub = _remove_spectrum(query, mask)
         # recurse
         for s2, n2 in _cs_helper(sub, library, names, num_endmembers-1,
-                                 num_results, metric, param, num_procs,
-                                 min_window, score_pct, method):
+                                 num_results, metric, num_procs, min_window,
+                                 score_pct, method):
           yield s2 * sim, [name] + n2
 
 
