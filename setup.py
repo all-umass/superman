@@ -33,7 +33,6 @@ setup_kwargs = dict(
         'Cython >= 0.20',
         'viztricks >= 0.1',
         'six >= 1.10.0',
-        'h5py >= 2.5.0',
     ],
     scripts=glob('scripts/*.py'),
 )
