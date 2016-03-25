@@ -53,9 +53,10 @@ class Dataset(object):
 
 class TrajDataset(Dataset):
   def set_data(self, keys, traj_map, **metadata):
-    self.set_metadata(metadata)
     # list of names, or other keys
     self.pkey = PrimaryKeyMetadata(keys)
+    # other metadata
+    self.set_metadata(metadata)
     # mapping from key to (n,2)-array
     self.traj = traj_map
     for key in keys:
@@ -140,14 +141,15 @@ class TrajDataset(Dataset):
 
 class VectorDataset(Dataset):
   def set_data(self, bands, spectra, pkey=None, **metadata):
+    # add the primary key, if one exists
+    self.pkey = pkey
+    # set the rest of the metadata
     self.set_metadata(metadata)
     # (d,)-array of common wavelengths
     self.bands = np.asanyarray(bands)
     # (n,d)-array of intensities
     self.intensities = spectra
     assert len(self.bands) == self.intensities.shape[1]
-    # add the primary key, if one exists
-    self.pkey = pkey
     # make sure all our shapes match
     n = self.num_spectra()
     for k, m in self.metadata.items():
