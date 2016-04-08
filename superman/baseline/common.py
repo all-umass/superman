@@ -29,19 +29,25 @@ class Baseline(object):
     Min and max are scalars, scale is one of {'linear','log','integer'}.'''
     raise NotImplementedError()
 
-  def fit(self, bands, intensities, segment=False):
+  def fit(self, bands, intensities, segment=False, invert=False):
     '''Fits one baseline per spectrum and stores them as self.baseline.
     When segment=True, automatically detects discontinuities in the bands
-    and fits a separate baseline per segment.'''
+    and fits a separate baseline per segment.
+    When invert=True, computes baseline on a flipped-intensity spectrum.'''
+    if invert:
+      offset = intensities.min(axis=-1) + intensities.max(axis=-1)
+      intensities = offset - intensities
     if segment:
       segments = _segment(bands, intensities)
       self.baseline = np.hstack([self._fit_many(*s) for s in segments])
     else:
       self.baseline = self._fit_many(bands, intensities)
+    if invert:
+      self.baseline = offset - self.baseline
     return self
 
-  def fit_transform(self, bands, intensities, segment=False):
-    self.fit(bands, intensities, segment=segment)
+  def fit_transform(self, bands, intensities, segment=False, invert=False):
+    self.fit(bands, intensities, segment=segment, invert=invert)
     return intensities - self.baseline
 
 
