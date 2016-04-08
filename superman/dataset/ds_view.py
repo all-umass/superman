@@ -6,12 +6,14 @@ from ..distance import library_search, per_channel_scores
 
 class DatasetView(object):
   def __init__(self, ds, mask=Ellipsis, pp='', blr_obj=None, chan_mask=False,
-               blr_segmented=False, crop=(-np.inf, np.inf), nan_gap=None):
+               blr_segmented=False, blr_inverted=False, crop=(-np.inf, np.inf),
+               nan_gap=None):
     self.ds = ds
     self.mask = mask
     # lazy transformation steps, which get applied to on-demand trajectories
     self.transformations = dict(pp=pp, blr_obj=blr_obj,
-                                blr_segmented=blr_segmented, crop=crop,
+                                blr_segmented=blr_segmented,
+                                blr_inverted=blr_inverted, crop=crop,
                                 nan_gap=nan_gap, chan_mask=chan_mask)
 
   def __str__(self):

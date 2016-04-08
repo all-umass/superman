@@ -111,7 +111,8 @@ class TrajDataset(Dataset):
     if bl_obj is not None:
       traj = np.array(traj, copy=copy)
       seg = transformations['blr_segmented']
-      traj[:,1] = bl_obj.fit_transform(*traj.T, segment=seg)
+      inv = transformations['blr_inverted']
+      traj[:,1] = bl_obj.fit_transform(*traj.T, segment=seg, invert=inv)
       copy = False
 
     # preprocessing
@@ -214,7 +215,8 @@ class VectorDataset(Dataset):
     if bl_obj is not None:
       ints = np.array(ints, copy=copy)
       seg = transformations['blr_segmented']
-      ints = bl_obj.fit_transform(bands, ints, segment=seg)
+      inv = transformations['blr_inverted']
+      ints = bl_obj.fit_transform(bands, ints, segment=seg, invert=inv)
       copy = False
 
     # preprocessing
