@@ -59,6 +59,9 @@ class DatasetView(object):
                                               self.ds.intensities[self.mask,:],
                                               self.transformations)
       indices = np.searchsorted(bands, bounds)
+      # check for zero-length slices
+      if np.any(np.diff(indices.reshape(-1,2), axis=1) == 0):
+        return np.full(ints.shape[0], np.nan)
       line = ints[:, indices[0]:indices[1]].max(axis=1)
       if len(bounds) == 4:
         line /= ints[:, indices[2]:indices[3]].max(axis=1)
@@ -69,6 +72,10 @@ class DatasetView(object):
     line = np.zeros(len(traj))
     for i, t in enumerate(traj):
       indices = np.searchsorted(t[:,0], bounds)
+      # check for zero-length slices
+      if np.any(np.diff(indices.reshape(-1,2), axis=1) == 0):
+        line[i] = np.nan
+        continue
       line[i] = t[indices[0]:indices[1], 1].max()
       if len(bounds) == 4:
         line[i] /= t[indices[2]:indices[3], 1].max()
