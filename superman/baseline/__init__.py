@@ -12,10 +12,12 @@ from .mpls import MPLS
 # from .ob import OB
 from .polyfit import PolyFit
 from .rubberband import Rubberband
+from .tophat import Tophat
 
 BL_CLASSES = dict(
     airpls=AirPLS, als=ALS, dietrich=Dietrich, fabc=FABC, kk=KajfoszKwiatek,
-    median=MedianFilter, mpls=MPLS, polyfit=PolyFit, rubberband=Rubberband
+    median=MedianFilter, mpls=MPLS, polyfit=PolyFit, rubberband=Rubberband,
+    tophat=Tophat
 )
 
 # add baseline methods that might fail to import
