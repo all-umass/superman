@@ -26,7 +26,12 @@ def parse(fh, return_comments=False):
       data.append(map(float, m.groups()))
     except ValueError:
       pass  # TODO: do something here
-  data = np.array(data, dtype=np.float32)  # Must be float32 for OPUS format.
+  # clean up / validate
+  data = np.array(data, dtype=np.float32, ndmin=2)
+  if data.ndim == 2 and data.shape[0] == 2 and data.shape[1] > 2:
+    data = data.T
+  if data.ndim != 2 or data.shape[1] != 2 or data.shape[0] < 2:
+    raise ValueError('Invalid shape for spectrum data: %s' % (data.shape,))
   if return_comments:
     return data, ''.join(comments)
   return data
