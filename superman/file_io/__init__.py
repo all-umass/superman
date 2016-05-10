@@ -64,7 +64,7 @@ PARSERS = {
 def parse_spectrum(fh, filetype=None):
   '''Tries to parse a spectrum from an arbitrary file/filename.'''
   if not hasattr(fh, 'read'):
-    return parse_spectrum(open(fh), filetype=filetype)
+    return parse_spectrum(open(fh, 'rU'), filetype=filetype)
   # Use the specified parser
   if filetype is not None:
     return PARSERS[filetype](fh)
