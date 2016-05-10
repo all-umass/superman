@@ -22,6 +22,10 @@ def parse_loose(fh):
     # default parse failed, try parsing as CSV
     fh.seek(0)
     data = np.loadtxt(fh, dtype=np.float32, delimiter=',')
+  return spectrum_shaped(data)
+
+
+def spectrum_shaped(data):
   data = np.atleast_2d(data)
   if data.shape[1] == 2 and data.shape[0] > 2:
     return data
@@ -50,11 +54,18 @@ def parse_asc(fh):
   return np.column_stack((bands, intensities))
 
 
+def parse_xlsx(fh):
+  import pandas as pd
+  df = pd.read_excel(fh)
+  return spectrum_shaped(df.values)
+
+
 PARSERS = {
     'opus': parse_opus,
     'spc': parse_spc,
     'wxd': parse_wxd,
     'sif': parse_sif,
+    'xlsx': parse_xlsx,
     'rruff': parse_rruff,
     'asc': parse_asc,
     'txt': parse_loose,
@@ -70,7 +81,7 @@ def parse_spectrum(fh, filetype=None):
     return PARSERS[filetype](fh)
   # No parser specified, so let's try them all!
   # Try binary formats first, because they fail fast (magic number checks).
-  for key in ('opus', 'spc', 'wxd', 'sif', 'rruff', 'asc'):
+  for key in ('opus', 'spc', 'wxd', 'sif', 'xlsx', 'rruff', 'asc'):
     try:
       return PARSERS[key](fh)
     except:
