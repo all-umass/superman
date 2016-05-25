@@ -1,4 +1,4 @@
-from __future__ import print_function, absolute_import
+from __future__ import print_function, absolute_import, division
 import numpy as np
 import scipy.optimize
 from six.moves import xrange
@@ -33,24 +33,24 @@ class BumpFit(PeakFinder):
 
 
 def fit_single_peak(bands, intensities, loc, fit_kind='lorentzian',
-                    max_iter=10, log_fn=print):
+                    max_iter=10, log_fn=print, band_resolution=1):
   if fit_kind == 'lorentzian':
     fit_func = _lorentzian
   elif fit_kind == 'gaussian':
     fit_func = _gaussian
   else:
     raise ValueError('Unsupported fit_kind: %s' % fit_kind)
-  # bounded fitter is still a little buggy
-  # bounds = ([bands.min(), 0, 0], [bands.max(), np.inf, np.inf])
-  # Choose reasonable starting parameters
+  # Choose reasonable starting parameters: (loc, area, fwhm)
   params = (loc, intensities[np.searchsorted(bands, loc)], 1)
   log_fn('Starting %s: params=%s' % (fit_kind, params))
+  # supply loose bounds
+  bounds = ([bands.min(), 0, 0], [bands.max(), np.inf, np.inf])
   # Keep fitting until the loc (x0) converges
   for i in xrange(max_iter):
     # Weight the channels based on distance from the approx. peak loc
-    w = 1 + (bands - loc)**2
+    w = 1 + ((bands - loc)/band_resolution)**2
     params, pcov = curve_fit(fit_func, bands, intensities,
-                             p0=params, sigma=w)  # , bounds=bounds)
+                             p0=params, sigma=w, bounds=bounds)
     log_fn('%s fit #%d: params=%s' % (fit_kind, i+1, params.tolist()))
     fit_data = fit_func(bands, *params)
     # Check for convergence in peak location
