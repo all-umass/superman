@@ -40,8 +40,17 @@ def fit_single_peak(bands, intensities, loc, fit_kind='lorentzian',
     fit_func = _gaussian
   else:
     raise ValueError('Unsupported fit_kind: %s' % fit_kind)
+  # deal with bad scaling
+  scale = intensities.max()
+  if scale >= 100:
+    intensities = intensities / scale
+  else:
+    scale = 1
   # Choose reasonable starting parameters: (loc, area, fwhm)
-  params = (loc, intensities[np.searchsorted(bands, loc)], 1)
+  idx = np.searchsorted(bands, loc)
+  i, j = max(0, idx-4), idx+5
+  area_guess = max(0, intensities[i:j].sum() / bands[i:j].sum())
+  params = (loc, area_guess, band_resolution)
   log_fn('Starting %s: params=%s' % (fit_kind, params))
   # supply loose bounds
   bounds = ([bands.min(), 0, 0], [bands.max(), np.inf, np.inf])
@@ -62,10 +71,13 @@ def fit_single_peak(bands, intensities, loc, fit_kind='lorentzian',
   # Select channels in the top 99% of intensity
   cutoff = fit_data.min()*0.99 + fit_data.max()*0.01
   mask = fit_data > cutoff
-  peak_x, peak_y = bands[mask], fit_data[mask]
+  peak_x = bands[mask]
+  peak_y = scale * fit_data[mask]
   # Calculate peak info
   loc, area, fwhm = map(float, params)
   loc_std, area_std, fwhm_std = map(float, np.sqrt(np.diag(pcov)))
+  area *= scale
+  area_std *= scale
   peak_data = dict(xmin=float(peak_x[0]), xmax=float(peak_x[-1]),
                    height=float(fit_func(loc, loc, area, fwhm)),
                    center=loc, area=area, fwhm=fwhm, center_std=loc_std,
