@@ -644,6 +644,7 @@
 03.04.11.02 Stalderite
 03.04.11.03 Quadratite
 03.04.12.01 Samsonite
+03.04.12.04 Manganoquadratite
 03.04.13.01 Nowackiite
 03.04.13.02 Aktashite
 03.04.13.03 Gruzdevite
@@ -1113,8 +1114,12 @@
 08.01.01.02 FormaniteY
 08.01.01.03 FergusoniteCe
 08.01.01.04 FergusoniteNd
+08.01.02.01 BetafergusoniteY
 08.01.02.01 Fergusonite-betaY
+08.01.02.01 FergusoniteYbeta
+08.01.02.02 BetafergusoniteCe
 08.01.02.02 Fergusonite-betaCe
+08.01.02.02 FergusoniteCebeta
 08.01.02.03 Fergusonite-betaNd
 08.01.03.01 YttrotantaliteY
 08.01.03.02 YttrocolumbiteY
@@ -1139,6 +1144,7 @@
 08.01.11.02 SamarskiteYb
 08.01.12.01 Qitianlingite
 08.02.01.01 Pyrochlore
+08.02.01.02 Hydropyrochlore
 08.02.01.02 Kalipyrochlore
 08.02.01.03 Bariopyrochlore
 08.02.01.04 YttropyrochloreY
@@ -1297,6 +1303,7 @@
 10.01.01.03 Gillardite
 10.01.01.04 Haydeeite
 10.01.02.01 Paratacamite
+10.01.02.02 Anatacamite
 10.01.02.02 Clinoatacamite
 10.01.02.03 Herbertsmithite
 10.01.02.04 Kapellasite
@@ -1340,6 +1347,7 @@
 10.05.04.02 Kadyrelite
 10.05.05.01 Comancheite
 10.05.06.01 Claringbullite
+10.05.06.01 Fejerite
 10.05.07.01 Onoratoite
 10.05.08.01 Simonkolleite
 10.05.08.02 Bobkingite
@@ -1356,8 +1364,8 @@
 10.06.04.01 Chloroxiphite
 10.06.05.01 Zirklerite
 10.06.06.01 Boleite
-10.06.07.01 Cumengite
 10.06.07.01 Cumengeite
+10.06.07.01 Cumengite
 10.06.08.01 Pseudoboleite
 10.06.09.01 Bideauxite
 10.06.10.01 Chlormagaluminite
@@ -1584,6 +1592,7 @@
 16a.05.04.01 Sabinaite
 16a.05.05.01 Rouvilleite
 16a.05.05.02 Podlesnoite
+16a.05.07.02 ArisiteLa
 16b.01.01.01 AncyliteCe
 16b.01.01.02 CalcioancyliteCe
 16b.01.01.03 CalcioancyliteNd
@@ -2017,6 +2026,7 @@
 30.02.05.05 Argentojarosite
 30.02.05.06 Plumbojarosite
 30.02.05.07 Beaverite
+30.02.05.07 BeaveriteCu
 30.02.05.08 Dorallcharite
 30.02.06.01 Itoite
 30.02.07.01 Piypite
@@ -2409,6 +2419,7 @@
 39.02.01.02 Sainfeldite
 39.02.01.03 Villyaellenite
 39.02.01.04 IMA2008-047
+39.02.01.04 Miguelromeroite
 39.02.01.05 IMA2008-066
 39.02.02.01 Vladimirite
 39.02.02.02 Guerinite
@@ -2443,6 +2454,7 @@
 40.01.03.02 Nabaphite
 40.01.04.01 Pottsite
 40.01.05.01 Malhmoodite
+40.01.05.02 Zigrasite
 40.01.06.01 IMA2008-046
 40.02.01.01 Anapaite
 40.02.02.01 Fairfieldite
@@ -2452,6 +2464,8 @@
 40.02.02.05 Talmessite
 40.02.02.06 Gaitite
 40.02.02.07 Roselite-beta
+40.02.02.07 Betaroselite
+40.02.02.07 Roselitebeta
 40.02.02.08 Parabrandtite
 40.02.02.09 Hillite
 40.02.02.10 Nickeltalmessite
@@ -2461,6 +2475,7 @@
 40.02.03.04 Wendwilsonite
 40.02.03.05 Manganlotharmeyerite
 40.02.04.01 Prosperite
+40.02.04.05 Rruffite
 40.02.05.01 Parascholzite
 40.02.06.01 Scholzite
 40.02.07.01 Phosphophyllite
@@ -2490,6 +2505,7 @@
 40.02a.02.02 Metauranospinite
 40.02a.03.01 Uranocircite
 40.02a.03.02 Metauranocircite
+40.02a.03.02 MetauranocirciteI
 40.02a.04.01 Heinrichite
 40.02a.04.02 Metaheinrichite
 40.02a.05.01 Sodium-autunite
@@ -2661,6 +2677,7 @@
 41.05.01.02 Conichalcite
 41.05.01.03 Austinite
 41.05.01.04 Duftite-beta
+41.05.01.04 Duftite
 41.05.01.05 Gabrielsonite
 41.05.01.06 Tangeite
 41.05.01.07 Nickelaustinite
@@ -2756,6 +2773,7 @@
 41.08.01.00 Apatite
 41.08.01.01 ApatiteCaF
 41.08.01.02 ApatiteCaCl
+41.08.01.02 Chlorapatite
 41.08.01.03 ApatiteCaOH
 41.08.01.04 Fluorapatite
 41.08.01.05 Hydroxylapatite
@@ -2780,6 +2798,7 @@
 41.08.05.01 Morelandite
 41.08.05.02 Alforsite
 41.08.06.01 Clinomimetite
+41.08.06.01 MimetiteM
 41.08.06.02 ApatiteCaOH)-M
 41.09.01.01 Kulanite
 41.09.01.02 Penikisite
@@ -2937,6 +2956,7 @@
 42.08.01.03 Bariopharmacosiderite
 42.08.01.04 Barium-alumopharmacosiderite
 42.08.01.05 Natropharmacosiderite
+42.08.01b.01 Pharmacoalumite
 42.08.02.01 Kidwellite
 42.08.03.01 Schoonerite
 42.08.04.01 Mitridatite
@@ -3129,6 +3149,7 @@
 43.05.08.01 Kovdorskite
 43.05.09.01 Viseite
 43.05.10.01 Perhamite
+43.05.10.02 Krasnoite
 43.05.11.01 Luneburgite
 43.05.12.01 Synadelphite
 43.05.12.02 Birchite
@@ -3169,6 +3190,7 @@
 44.03.10.02 Zincalstibite
 44.03.11.01 Camerolaite
 44.03.12.01 Brizziite-VII
+44.03.12.01 Brizziite
 45.01.01.01 Reinerite
 45.01.02.01 Trigonite
 45.01.02.02 Rouseite
@@ -3285,6 +3307,7 @@
 49.03.05.01 Uranotungstite
 49.03.06.01 Rankachite
 49.03.07.01 Bamfordite
+49.03.08.-- Gelosaite
 49.04.01.01 Betpakdalite
 49.04.01.01 BetpakdaliteCaMg
 49.04.02.01 Obradovicite
@@ -3330,6 +3353,7 @@
 50.03.05.01 Dinite
 50.03.06.01 Evenkite
 50.03.07.01 Karpatite
+50.03.07.01 Carpathite
 50.03.08.01 Idrialite
 50.04.01.01 Refikite
 50.04.02.01 Hoelite
@@ -3393,6 +3417,7 @@
 51.05.03.01 Huttonite
 51.05.03.02 TombarthiteY
 51.05.04.01 Eulytite
+51.05.04.01 Eulytine
 51.05.06.01 Reidite
 52.01.01.01 Beryllite
 52.01.02.01 Sphaerobertrandite
@@ -3434,6 +3459,7 @@
 52.04.01.02 Welinite-VIII
 52.04.01.03 Kittatinnyite
 52.04.01.04 Franciscanite-VIII
+52.04.01.04 Franciscanite
 52.04.02.01 Mozartite
 52.04.02.02 Vuagnatite
 52.04.03.01 Titanite
@@ -3456,7 +3482,9 @@
 52.04.09.01 BritholiteCe
 52.04.09.02 BritholiteY
 52.04.09.03 EllestaditeF
+52.04.09.03 Fluorellestadite
 52.04.09.04 EllestaditeOH
+52.04.09.04 Hydroxylellestadite
 52.04.09.05 EllestaditeCl
 52.04.09.06 Mattheddleite
 52.04.09.07 KarnasurtiteCe
@@ -3797,6 +3825,8 @@
 61.02.01.02 Sekaninaite
 61.02.02.01 Jonesite
 61.02.03.01 Lourenswalsite
+61.03.01.03 Fluoruvite
+61.03.01.05 Fluorbuergerite
 61.03a.01.01 Foitite
 61.03a.01.02 Magnesiofoitite
 61.03a.01.03 Rossmanite
@@ -3830,6 +3860,7 @@
 63.02.01a.04 Eifelite
 63.02.01a.05 Merrihueite
 63.02.01a.06 OsumiliteFe
+63.02.01a.06 Osumilite
 63.02.01a.07 OsumiliteMg
 63.02.01a.08 Poudretteite
 63.02.01a.09 Sugilite
@@ -3851,6 +3882,7 @@
 64.01.01.02 Alluaivite
 64.01.01.03 Kentbrooksite
 64.01.01.04 Khomyakovite
+64.01.01.04 Manganoeudialyte
 64.01.01.05 Manganokhomyakovite
 64.01.01.06 Oneillite
 64.01.01.07 Ferrokentbrooksite
@@ -3916,8 +3948,8 @@
 65.01.07.01 Shattuckite
 65.01.08.01 Nchwaningite
 65.01.09.01 Yegorovite
-65.02.01.01a Wollastonite-1A
 65.02.01.01a Wollastonite
+65.02.01.01a Wollastonite-1A
 65.02.01.01b Wollastonite-2M
 65.02.01.01b Wollastonite2M
 65.02.01.01c Wollastonite-3A-4A-5A-7A
@@ -4115,6 +4147,7 @@
 69.01.01.05 Zircophyllite
 69.01.01.06 Hydroastrophyllite
 69.01.01.07 Magnesioastrophyllite
+69.01.01.07 Lobanovite
 69.01.01.08 Niobokupletskite
 69.01.01.09 Nalivkinite
 69.02.01a.01 Aenigmatite
@@ -4137,8 +4170,8 @@
 69.02.03.03 Deerite
 69.02.04.01 Liebauite
 69.02.05.01 Johninnesite
-70.01.01.01 Litidionite
 70.01.01.01 Lithidionite
+70.01.01.01 Litidionite
 70.01.01.02 Fenaksite
 70.01.01.03 Manaksite
 70.01.01.04 Agrellite
@@ -4305,6 +4338,7 @@
 72.02.01.04 SazhiniteLa
 72.03.01.00 Apophyllite
 72.03.01.01 ApophylliteKF
+72.03.01.01 FluorapophylliteK
 72.03.01.02 ApophylliteKOH
 72.03.01.03 ApophylliteNaF
 72.03.01.04 Carletonite
@@ -4452,6 +4486,7 @@
 76.02.03.07 Tugtupite
 76.02.03.08 Tsaregorodtsevite
 76.02.04.01 Helvite
+76.02.04.01 Helvine
 76.02.04.02 Danalite
 76.02.04.03 Genthelvite
 76.02.05.01 Afghanite
@@ -4512,6 +4547,7 @@
 77.01.03.01 Gismondine
 77.01.03.02 Amicite
 77.01.03.03 Garronite
+77.01.03.03 Garroniteca
 77.01.03.04 Gobbinsite
 77.01.03.05 Harmotome
 77.01.03.06 PhillipsiteNa
