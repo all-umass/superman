@@ -1,6 +1,7 @@
 from __future__ import print_function, absolute_import, division
 import numpy as np
 import scipy.optimize
+import scipy.integrate
 from six.moves import xrange
 
 from .common import PeakFinder
@@ -49,17 +50,17 @@ def fit_single_peak(bands, intensities, loc, fit_kind='lorentzian',
   # Choose reasonable starting parameters: (loc, area, fwhm)
   idx = np.searchsorted(bands, loc)
   i, j = max(0, idx-4), idx+5
-  area_guess = max(0, intensities[i:j].sum() / bands[i:j].sum())
-  params = (loc, area_guess, band_resolution)
+  area_guess = scipy.integrate.trapz(intensities[i:j], bands[i:j])
+  params = (loc, max(0, area_guess), 2 * band_resolution)
   log_fn('Starting %s: params=%s' % (fit_kind, params))
   # supply loose bounds
-  bounds = ([bands.min(), 0, 0], [bands.max(), np.inf, np.inf])
+  # bounds = ([bands.min(), 0, 0], [bands.max(), np.inf, np.inf])
   # Keep fitting until the loc (x0) converges
   for i in xrange(max_iter):
     # Weight the channels based on distance from the approx. peak loc
     w = 1 + ((bands - loc)/band_resolution)**2
     params, pcov = curve_fit(fit_func, bands, intensities,
-                             p0=params, sigma=w, bounds=bounds)
+                             p0=params, sigma=w)  # bounds=bounds)
     log_fn('%s fit #%d: params=%s' % (fit_kind, i+1, params.tolist()))
     fit_data = fit_func(bands, *params)
     # Check for convergence in peak location
