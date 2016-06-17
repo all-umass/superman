@@ -29,6 +29,11 @@ class Baseline(object):
     Min and max are scalars, scale is one of {'linear','log','integer'}.'''
     raise NotImplementedError()
 
+  def __repr__(self):
+    param_str = ', '.join('%s=%r' % (k, getattr(self, k))
+                          for k in self.param_ranges())
+    return '<%s: %s>' % (self.__class__.__name__, param_str)
+
   def fit(self, bands, intensities, segment=False, invert=False):
     '''Fits one baseline per spectrum and stores them as self.baseline.
     When segment=True, automatically detects discontinuities in the bands
