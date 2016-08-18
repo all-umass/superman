@@ -40,7 +40,7 @@ class DatasetView(object):
     if not hasattr(self.ds, 'intensities'):
       return self.get_trajectories(return_keys=return_keys)
     # just return the intensities matrix
-    data = self.ds.intensities[self.mask]
+    data = self.ds.intensities[self.mask, :]
     if return_keys:
       return data, self.ds.pkey.index2key(self.mask)
     return data
