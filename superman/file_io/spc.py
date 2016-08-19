@@ -277,7 +277,7 @@ def parse_traj(fh):
   if hasattr(fh, 'mode') and 'b' not in fh.mode:
     fh = open(fh.name, 'rb')
   data = SPCFile.parse_stream(fh)
-  assert data.Header.nsub == 1, 'parse_traj only support 1 subfile for now'
+  assert data.Header.nsub == 1, 'parse_traj only supports 1 SPC subfile'
   for x, y in _convert_arrays(data):
     return np.transpose((x, y))
 
