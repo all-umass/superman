@@ -80,7 +80,7 @@ def _squash(S, squash_type, hinge=None):
   return getattr(np, squash_type)(S)
 
 
-def _normalize(S, norm_type, splits='1'):
+def _normalize(S, norm_type, loc=None):
   if norm_type in ('l1', 'l2'):
     return normalize(S, norm=norm_type, copy=False)
   if norm_type == 'norm3':
@@ -101,21 +101,15 @@ def _normalize(S, norm_type, splits='1'):
   if norm_type == 'min':
     S -= S.min(axis=1)[:,None]
     return S
-  splits = int(splits)
-  if splits <= 1:
-    # This gets weird. I wish sklearn.preprocessing.normalize handled this.
-    if scipy.sparse.issparse(S):
-      maxes = S.max(axis=1).toarray()
-      maxes = maxes.repeat(np.diff(S.indptr))
-      mask = maxes != 0
-      S.data[mask] /= maxes[mask]
-    else:
-      S /= S.max(axis=1)[:,None]
+  # norm_type == 'max'
+  # This gets weird. I wish sklearn.preprocessing.normalize handled this.
+  if scipy.sparse.issparse(S):
+    maxes = S.max(axis=1).toarray()
+    maxes = maxes.repeat(np.diff(S.indptr))
+    mask = maxes != 0
+    S.data[mask] /= maxes[mask]
   else:
-    # probably will fail for sparse inputs
-    for ss in np.array_split(S, splits, axis=1):
-      # each ss is a view into S, so modifying it also changes S
-      ss /= ss.max(axis=1)[:,None]
+    S /= S.max(axis=1)[:,None]
   return S
 
 
