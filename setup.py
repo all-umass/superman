@@ -31,7 +31,6 @@ setup_kwargs = dict(
         'matplotlib >= 1.3.1',
         'construct >= 2.5.2',
         'Cython >= 0.20',
-        'viztricks >= 0.1',
         'six >= 1.10.0',
     ],
     scripts=glob('scripts/*.py'),
