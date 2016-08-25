@@ -1,7 +1,6 @@
 import numpy as np
 import scipy.signal
 import scipy.sparse
-from functools import partial
 from sklearn.preprocessing import normalize
 from sklearn.decomposition import PCA
 
@@ -9,20 +8,28 @@ from sklearn.decomposition import PCA
 _PP_MEMO = {}
 
 
-def preprocess(spectra, pp_string):
+def preprocess(spectra, pp_string, wavelengths=None):
   pp_fn = _make_pp(pp_string)
   if hasattr(spectra, 'shape'):
-    return pp_fn(spectra)
+    return pp_fn(spectra, wavelengths)
   # trajectory case
   pp = []
   for t in spectra:
     tt = t.copy()
-    tt[:,1] = pp_fn(t[:,1:2].T).ravel()
+    tt[:,1] = pp_fn(t[:,1:2].T, t[:,0]).ravel()
     pp.append(tt)
   return pp
 
 
 def _make_pp(pp_string):
+  '''Convert a preprocess string into its corresponding function.
+
+  pp_string: str, looks like "foo:a:b,bar:x,baz:y"
+      In this example, there are three preprocessing steps: foo, bar, and baz.
+      Each takes one or two arguments, separated by colons.
+
+  Returns: pp_fn(spectra, wavelengths), callable
+  '''
   # try to use the cache
   if pp_string in _PP_MEMO:
     return _PP_MEMO[pp_string]
@@ -35,16 +42,16 @@ def _make_pp(pp_string):
       pipeline.append(PP_STEPS[parts[0]](*parts[1:]))
 
   # return a function that runs the pipeline
-  def _fn(S):
+  def _fn(S, w):
     for f in pipeline:
-      S = f(S)
+      S = f(S, w)
     return S
 
   _PP_MEMO[pp_string] = _fn
   return _fn
 
 
-def _start_pipeline(spectra):
+def _start_pipeline(spectra, wavelengths):
   if scipy.sparse.issparse(spectra):
     S = spectra.copy()
     S.data = np.maximum(S.data, 1e-10)
@@ -61,7 +68,7 @@ def _polysquash(a, b):
   a, b = float(a), float(b)
   c = 1 - a - b
 
-  def fn(spectra):
+  def fn(spectra, wavelengths):
     x = spectra / np.max(spectra, axis=1, keepdims=True)
     p = a*x**3 + b*x**2 + c*x
     return normalize(p, norm='l2', copy=False)
@@ -79,7 +86,7 @@ def _bezier(a, b):
     a += 1e-5
     twoa = 2*a
 
-  def fn(spectra):
+  def fn(spectra, wavelengths):
     x = spectra / np.max(spectra, axis=1, keepdims=True)
     tmp = np.sqrt(a*a-twoa*x+x)
     foo = x * (1 - twob)
@@ -94,19 +101,20 @@ def _pca(num_pcs):
   num_pcs = float(num_pcs) if '.' in num_pcs else int(num_pcs)
   model = PCA(n_components=num_pcs)
 
-  return lambda S: model.fit_transform(S)
+  return lambda S, w: model.fit_transform(S)
 
 
 def _squash(squash_type, hinge=None):
   if squash_type == 'hinge':
-    return partial(np.minimum, float(hinge))
+    h = float(hinge)
+    return lambda S, w: np.minimum(S, h)
   if squash_type == 'cos':
-    return lambda S: (1 - np.cos(np.pi * S)) / 2.0
+    return lambda S, w: (1 - np.cos(np.pi * S)) / 2.0
 
   # Only options left are plain numpy functions.
   squash_fn = getattr(np, squash_type)
 
-  def fn(S):
+  def fn(S, w):
     np.maximum(S, 1e-10, out=S)  # Hack: fix NaN issues
     return squash_fn(S)
   return fn
@@ -114,19 +122,19 @@ def _squash(squash_type, hinge=None):
 
 def _normalize(norm_type, loc=None):
   if norm_type in ('l1', 'l2'):
-    return partial(normalize, norm=norm_type, copy=False)
+    return lambda S, w: normalize(S, norm=norm_type, copy=False)
   if norm_type == 'norm3':
-    return partial(libs_norm3, copy=False)
+    return lambda S, w: libs_norm3(S, copy=False)
   if norm_type == 'cum':
-    return cumulative_norm
+    return lambda S, w: cumulative_norm(S)
 
   if norm_type == 'min':
-    def fn(S):
+    def fn(S, w):
       S -= S.min(axis=1)[:,None]
       return S
   elif norm_type == 'max':
     # TODO: when sklearn v0.17+ is installed, use normalize(S, norm='max')
-    def fn(S):
+    def fn(S, w):
       if scipy.sparse.issparse(S):
         maxes = S.max(axis=1).toarray()
         maxes = maxes.repeat(np.diff(S.indptr))
@@ -135,28 +143,35 @@ def _normalize(norm_type, loc=None):
       else:
         S /= S.max(axis=1)[:,None]
       return S
+  elif norm_type == 'band':
+    loc = float(loc)
+
+    def fn(S, w):
+      idx = np.searchsorted(w, loc)
+      S /= S[:, idx][:,None]
+      return S
   else:
     raise ValueError('Unknown normalization type: %r' % norm_type)
   return fn
 
 
 def _deriv(window, order):
-  w, k = int(window), int(order)
+  window, order = int(window), int(order)
 
-  def fn(S):
+  def fn(S, w):
     if scipy.sparse.issparse(S):
       S = S.toarray()
-    return scipy.signal.savgol_filter(S, w, k, deriv=1)
+    return scipy.signal.savgol_filter(S, window, order, deriv=1)
   return fn
 
 
 def _smooth(window, order):
-  w, k = int(window), int(order)
+  window, order = int(window), int(order)
 
-  def fn(S):
+  def fn(S, w):
     if scipy.sparse.issparse(S):
       S = S.toarray()
-    S = scipy.signal.savgol_filter(S, w, k, deriv=0)
+    S = scipy.signal.savgol_filter(S, window, order, deriv=0)
     # get rid of any non-positives created by the smoothing
     return np.maximum(S, 1e-10)
   return fn
