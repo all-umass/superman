@@ -19,8 +19,12 @@ class PreprocessTests(unittest.TestCase):
     result = preprocess(vectors, '')
     assert_array_almost_equal(vectors, result)
 
-    result = preprocess(vectors, 'normalize:max,squash:sqrt,smooth:5:2')
-    self.assertEqual(vectors.shape, result.shape)
+    x = np.sqrt(vectors / vectors.max(axis=1)[:,None])
+    result = preprocess(vectors, 'normalize:max,squash:sqrt')
+    assert_array_almost_equal(x, result, decimal=5)
+
+    result = preprocess(vectors, 'smooth:5:2,deriv:3:1,pca:2')
+    self.assertEqual((3,2), result.shape)
 
   def test_pp_traj(self):
     result = preprocess(trajs, '')

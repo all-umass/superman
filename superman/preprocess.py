@@ -1,8 +1,12 @@
 import numpy as np
 import scipy.signal
 import scipy.sparse
+from functools import partial
 from sklearn.preprocessing import normalize
 from sklearn.decomposition import PCA
+
+# Cache for _make_pp, maps pp_string -> pp_fn
+_PP_MEMO = {}
 
 
 def preprocess(spectra, pp_string):
@@ -19,21 +23,25 @@ def preprocess(spectra, pp_string):
 
 
 def _make_pp(pp_string):
+  # try to use the cache
+  if pp_string in _PP_MEMO:
+    return _PP_MEMO[pp_string]
+
   # populate the preprocessing function pipeline
-  fns = [(_start_pipeline, ())]
+  pipeline = [_start_pipeline]
   if pp_string:
     for step in pp_string.split(','):
       parts = step.split(':')
-      fn = PP_STEPS[parts[0]]
-      fns.append((fn, tuple(parts[1:])))
+      pipeline.append(PP_STEPS[parts[0]](*parts[1:]))
 
-  # define the custom pp function by running the pipeline
-  def _pp(S):
-    for fn, args in fns:
-      S = fn(S, *args)
+  # return a function that runs the pipeline
+  def _fn(S):
+    for f in pipeline:
+      S = f(S)
     return S
 
-  return _pp
+  _PP_MEMO[pp_string] = _fn
+  return _fn
 
 
 def _start_pipeline(spectra):
@@ -45,83 +53,132 @@ def _start_pipeline(spectra):
   return S
 
 
-def _polysquash(spectra, *params):
+def _polysquash(a, b):
   '''Generalized polynomial squashing function.
   Derived from a normal cubic polynomial with f(0) = 0 and f(1) = 1.
   We also enforce d/dx => 0 and d2/d2x <= 0, for a concave shape.
   This constrains -0.5 < a < 1, and -2a-1 < b < min(-3a, 0).'''
-  a, b = map(float, params)
+  a, b = float(a), float(b)
   c = 1 - a - b
-  x = spectra / np.max(spectra, axis=1, keepdims=True)
-  p = a*x**3 + b*x**2 + c*x
-  return normalize(p, norm='l2', copy=False)
+
+  def fn(spectra):
+    x = spectra / np.max(spectra, axis=1, keepdims=True)
+    p = a*x**3 + b*x**2 + c*x
+    return normalize(p, norm='l2', copy=False)
+  return fn
 
 
-def _bezier(spectra, *params):
+def _bezier(a, b):
   '''Derived from a bezier curve with control points at [(0,0), (a,b), (1,1)]
   Constraints are 0 < a < 1, 0 < b < 1, b > a (upper left of y = x line).
   '''
-  a, b = map(float, params)
-  x = spectra / np.max(spectra, axis=1, keepdims=True)
+  a, b = float(a), float(b)
   twoa = 2*a
   twob = 2*b
   if twoa == 1:
     a += 1e-5
     twoa = 2*a
-  tmp = np.sqrt(a*a-twoa*x+x)
-  foo = x * (1 - twob)
-  top = -twoa*(tmp+foo+b) + twob*tmp + foo + twoa*a
-  p = top / (1-twoa)**2
-  return normalize(p, norm='l2', copy=False)
+
+  def fn(spectra):
+    x = spectra / np.max(spectra, axis=1, keepdims=True)
+    tmp = np.sqrt(a*a-twoa*x+x)
+    foo = x * (1 - twob)
+    top = -twoa*(tmp+foo+b) + twob*tmp + foo + twoa*a
+    p = top / (1-twoa)**2
+    return normalize(p, norm='l2', copy=False)
+  return fn
 
 
-def _pca(spectra, num_pcs):
+def _pca(num_pcs):
   # Hack: may be float in [0,1] or positive int
   num_pcs = float(num_pcs) if '.' in num_pcs else int(num_pcs)
   model = PCA(n_components=num_pcs)
-  return model.fit_transform(spectra)
+
+  return lambda S: model.fit_transform(S)
 
 
-def _squash(S, squash_type, hinge=None):
+def _squash(squash_type, hinge=None):
   if squash_type == 'hinge':
-    return np.minimum(S, float(hinge))
+    return partial(np.minimum, float(hinge))
   if squash_type == 'cos':
-    return (1 - np.cos(np.pi * S)) / 2.0
-  # Only options left are just numpy functions.
-  np.maximum(S, 1e-10, out=S)  # Hack: fix NaN issues
-  return getattr(np, squash_type)(S)
+    return lambda S: (1 - np.cos(np.pi * S)) / 2.0
+
+  # Only options left are plain numpy functions.
+  squash_fn = getattr(np, squash_type)
+
+  def fn(S):
+    np.maximum(S, 1e-10, out=S)  # Hack: fix NaN issues
+    return squash_fn(S)
+  return fn
 
 
-def _normalize(S, norm_type, loc=None):
+def _normalize(norm_type, loc=None):
   if norm_type in ('l1', 'l2'):
-    return normalize(S, norm=norm_type, copy=False)
+    return partial(normalize, norm=norm_type, copy=False)
   if norm_type == 'norm3':
-    # LIBS-specific normalization
-    return libs_norm3(S, copy=False)
+    return partial(libs_norm3, copy=False)
   if norm_type == 'cum':
-    # see ref: "Quality Assessment of Tandem Mass Spectra
-    #   Based on Cumulative Intensity Normalization"
-    # by Na and Paek, Journal of Proteome Research.
-    idx = np.arange(S.shape[0])[:,None]
-    ranks = np.argsort(S, axis=1)
-    cumsums = np.cumsum(S[idx,ranks], axis=1)
-    unranks = np.zeros_like(ranks)
-    unranks[idx,ranks] = np.arange(S.shape[1])
-    S = cumsums[idx,unranks]
-    S /= cumsums[:,-1:]
-    return S
+    return cumulative_norm
+
   if norm_type == 'min':
-    S -= S.min(axis=1)[:,None]
-    return S
-  # norm_type == 'max'
-  # TODO: when sklearn v0.17+ is installed, use normalize(S, norm='max')
-  if scipy.sparse.issparse(S):
-    maxes = S.max(axis=1).toarray()
-    maxes = maxes.repeat(np.diff(S.indptr))
-    mask = maxes != 0
-    S.data[mask] /= maxes[mask]
+    def fn(S):
+      S -= S.min(axis=1)[:,None]
+      return S
+  elif norm_type == 'max':
+    # TODO: when sklearn v0.17+ is installed, use normalize(S, norm='max')
+    def fn(S):
+      if scipy.sparse.issparse(S):
+        maxes = S.max(axis=1).toarray()
+        maxes = maxes.repeat(np.diff(S.indptr))
+        mask = maxes != 0
+        S.data[mask] /= maxes[mask]
+      else:
+        S /= S.max(axis=1)[:,None]
+      return S
   else:
-    S /= S.max(axis=1)[:,None]
+    raise ValueError('Unknown normalization type: %r' % norm_type)
+  return fn
+
+
+def _deriv(window, order):
+  w, k = int(window), int(order)
+
+  def fn(S):
+    if scipy.sparse.issparse(S):
+      S = S.toarray()
+    return scipy.signal.savgol_filter(S, w, k, deriv=1)
+  return fn
+
+
+def _smooth(window, order):
+  w, k = int(window), int(order)
+
+  def fn(S):
+    if scipy.sparse.issparse(S):
+      S = S.toarray()
+    S = scipy.signal.savgol_filter(S, w, k, deriv=0)
+    # get rid of any non-positives created by the smoothing
+    return np.maximum(S, 1e-10)
+  return fn
+
+# Lookup table of pp-string name -> pipeline function maker
+PP_STEPS = dict(squash=_squash, normalize=_normalize, poly=_polysquash,
+                smooth=_smooth, deriv=_deriv, pca=_pca, bezier=_bezier)
+
+
+def cumulative_norm(S):
+  '''Cumulative intensity normalization method.
+
+  "Quality Assessment of Tandem Mass Spectra Based on
+   Cumulative Intensity Normalization", Na & Paek, J. of Proteome Research
+  '''
+  idx = np.arange(S.shape[0])[:,None]
+  ranks = np.argsort(S, axis=1)
+  cumsums = np.cumsum(S[idx,ranks], axis=1)
+  unranks = np.zeros_like(ranks)
+  unranks[idx,ranks] = np.arange(S.shape[1])
+  S = cumsums[idx,unranks]
+  S /= cumsums[:,-1:]
   return S
 
 
@@ -140,21 +197,3 @@ def libs_norm3(shots, copy=True):
   normalize(shots[:,a:b], norm='l1', copy=False)
   normalize(shots[:, b:], norm='l1', copy=False)
   return shots
-
-
-def _deriv(S, window, order):
-  if scipy.sparse.issparse(S):
-    S = S.toarray()
-  return scipy.signal.savgol_filter(S, int(window), int(order), deriv=1)
-
-
-def _smooth(S, window, order):
-  if scipy.sparse.issparse(S):
-    S = S.toarray()
-  S = scipy.signal.savgol_filter(S, int(window), int(order), deriv=0)
-  # get rid of any non-positives created by the smoothing
-  return np.maximum(S, 1e-10)
-
-# Lookup table of pp-string name -> pipeline function
-PP_STEPS = dict(squash=_squash, normalize=_normalize, poly=_polysquash,
-                smooth=_smooth, deriv=_deriv, pca=_pca, bezier=_bezier)
