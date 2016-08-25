@@ -6,30 +6,42 @@ from sklearn.decomposition import PCA
 
 
 def preprocess(spectra, pp_string):
-  if not hasattr(spectra, 'shape'):
-    pp = []
-    for t in spectra:
-      tt = t.copy()
-      tt[:,1] = _preprocess(t[:,1:2].T, pp_string).ravel()
-      pp.append(tt)
-  else:
-    pp = _preprocess(spectra, pp_string)
+  pp_fn = _make_pp(pp_string)
+  if hasattr(spectra, 'shape'):
+    return pp_fn(spectra)
+  # trajectory case
+  pp = []
+  for t in spectra:
+    tt = t.copy()
+    tt[:,1] = pp_fn(t[:,1:2].T).ravel()
+    pp.append(tt)
   return pp
 
 
-def _preprocess(spectra, pp_string):
-  pp_fns = dict(squash=_squash, normalize=_normalize, poly=_polysquash,
-                smooth=_smooth, deriv=_deriv, pca=_pca, bezier=_bezier)
+def _make_pp(pp_string):
+  # populate the preprocessing function pipeline
+  fns = [(_start_pipeline, ())]
+  if pp_string:
+    for step in pp_string.split(','):
+      parts = step.split(':')
+      fn = PP_STEPS[parts[0]]
+      fns.append((fn, tuple(parts[1:])))
+
+  # define the custom pp function by running the pipeline
+  def _pp(S):
+    for fn, args in fns:
+      S = fn(S, *args)
+    return S
+
+  return _pp
+
+
+def _start_pipeline(spectra):
   if scipy.sparse.issparse(spectra):
     S = spectra.copy()
     S.data = np.maximum(S.data, 1e-10)
   else:
     S = np.maximum(spectra, 1e-10)
-  if pp_string:
-    for step in pp_string.split(','):
-      parts = step.split(':')
-      fn = pp_fns[parts[0]]
-      S = fn(S, *parts[1:])
   return S
 
 
@@ -102,7 +114,7 @@ def _normalize(S, norm_type, loc=None):
     S -= S.min(axis=1)[:,None]
     return S
   # norm_type == 'max'
-  # This gets weird. I wish sklearn.preprocessing.normalize handled this.
+  # TODO: when sklearn v0.17+ is installed, use normalize(S, norm='max')
   if scipy.sparse.issparse(S):
     maxes = S.max(axis=1).toarray()
     maxes = maxes.repeat(np.diff(S.indptr))
@@ -116,13 +128,14 @@ def _normalize(S, norm_type, loc=None):
 def libs_norm3(shots, copy=True):
   shots = np.array(shots, copy=copy, ndmin=2)
   num_chan = shots.shape[1]
-  assert num_chan in (6143, 6144, 5485)
   if num_chan == 6143:
     a, b = 2047, 4097
   elif num_chan == 6144:
     a, b = 2048, 4098
   elif num_chan == 5485:
     a, b = 1884, 3811
+  else:
+    raise ValueError('Invalid # channels for LIBS norm3 method: %d' % num_chan)
   normalize(shots[:, :a], norm='l1', copy=False)
   normalize(shots[:,a:b], norm='l1', copy=False)
   normalize(shots[:, b:], norm='l1', copy=False)
@@ -141,3 +154,7 @@ def _smooth(S, window, order):
   S = scipy.signal.savgol_filter(S, int(window), int(order), deriv=0)
   # get rid of any non-positives created by the smoothing
   return np.maximum(S, 1e-10)
+
+# Lookup table of pp-string name -> pipeline function
+PP_STEPS = dict(squash=_squash, normalize=_normalize, poly=_polysquash,
+                smooth=_smooth, deriv=_deriv, pca=_pca, bezier=_bezier)
