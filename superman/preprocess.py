@@ -8,11 +8,19 @@ from sklearn.decomposition import PCA
 _PP_MEMO = {}
 
 
-def preprocess(spectra, pp_string, wavelengths=None):
+def preprocess(spectra, pp_string, wavelengths=None, copy=True):
   pp_fn = _make_pp(pp_string)
+
   if hasattr(spectra, 'shape'):
+    if copy:
+      spectra = spectra.copy()
     return pp_fn(spectra, wavelengths)
-  # trajectory case
+
+  if not copy:
+    for t in spectra:
+      t[:,1] = pp_fn(t[:,1:2].T, t[:,0]).ravel()
+    return spectra
+
   pp = []
   for t in spectra:
     tt = t.copy()
@@ -51,12 +59,11 @@ def _make_pp(pp_string):
   return _fn
 
 
-def _start_pipeline(spectra, wavelengths):
-  if scipy.sparse.issparse(spectra):
-    S = spectra.copy()
+def _start_pipeline(S, w):
+  if scipy.sparse.issparse(S):
     S.data = np.maximum(S.data, 1e-10)
   else:
-    S = np.maximum(spectra, 1e-10)
+    np.maximum(S, 1e-10, out=S)
   return S
 
 

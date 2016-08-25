@@ -119,7 +119,8 @@ class TrajDataset(Dataset):
     pp = transformations['pp']
     if pp:
       traj = np.array(traj, copy=copy)
-      traj[:,1] = preprocess(traj[:,1:2].T, pp).ravel()
+      traj[:,1] = preprocess(traj[:,1:2].T, pp, wavelengths=traj[:,0],
+                             copy=False).ravel()
       copy = False
 
     # insert NaNs
@@ -222,7 +223,7 @@ class VectorDataset(Dataset):
     # preprocessing
     pp = transformations['pp']
     if pp:
-      ints = preprocess(ints, pp)
+      ints = preprocess(ints, pp, wavelengths=bands, copy=copy)
       copy = False
 
     # insert NaNs
