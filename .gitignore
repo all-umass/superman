@@ -3,3 +3,4 @@
 *.c
 *.so
 build/
+.coverage

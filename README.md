@@ -14,3 +14,10 @@ If you're making changes, try running:
 
 This will add the local superman package to your PYTHONPATH,
 which means any changes you make will be reflected right away.
+
+### Testing
+
+Use `nose2` to run the test suite,
+or `nose2 -C` to also generate a coverage report.
+Note that if you try running tests with `nosetests`,
+only some of the test suite is detected and run.
