@@ -69,7 +69,7 @@ class NumericMetadata(_BaseMetadata):
       # very odd cases fall here
       self.bounds = self.true_bounds
       if step is None:
-        step = _choose_step(self.true_bounds[1] - self.true_bounds[0])
+        step = 1.0
     self.step = step
 
   def filter(self, bounds):
