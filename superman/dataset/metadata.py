@@ -76,7 +76,8 @@ class NumericMetadata(_BaseMetadata):
     # Check for the trivial case: all within bounds
     lb, ub = bounds
     tlb, tub = self.true_bounds
-    if lb <= tlb and ub >= tub:
+    eps = 0.1 * self.step
+    if lb - tlb < eps and tub - ub < eps:
       return True
     mask = (self.arr >= lb) & (self.arr <= ub)
     if self.num_repeats == 1:
