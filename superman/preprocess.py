@@ -155,7 +155,10 @@ def _normalize(norm_type, loc=None):
 
     def fn(S, w):
       idx = np.searchsorted(w, loc)
-      S /= S[:, idx][:,None]
+      a = max(0, idx - 2)
+      b = min(len(w), idx + 3)
+      x = S[:, a:b].max(axis=1)
+      S /= x[:,None]
       return S
   else:
     raise ValueError('Unknown normalization type: %r' % norm_type)
