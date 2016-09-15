@@ -145,10 +145,6 @@ def parse_spectrum(fh, filetype=None):
     except:
       pass
 
-  # The rest of the parsers only deal with file-likes
-  if fileobj is None:
-    fileobj = open(filepath, 'rU')
-
   # No parser specified, so let's try them all!
   for parser in PARSE_ORDER:
     try:
