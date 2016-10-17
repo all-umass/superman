@@ -50,6 +50,112 @@ class Dataset(object):
   def __str__(self):
     return '%s [%s]' % (self.name, self.kind)
 
+  def _transform_traj(self, traj, transformations):
+    if transformations is None:
+      return traj
+
+    if transformations['chan_mask']:
+      raise ValueError('chan_mask transform is not applicable to TrajDataset')
+
+    tmp = np.asarray(traj)
+    copy, traj = tmp is traj, tmp
+
+    # crop
+    lb, ub, step = transformations['crop']
+    if lb > traj[0,0]:
+      idx = np.searchsorted(traj[:,0], lb)
+      traj = traj[idx:]
+    if ub < traj[-1,0]:
+      idx = np.searchsorted(traj[:,0], ub)
+      traj = traj[:idx]
+
+    # resample (but keep the trajectory format)
+    if step > 0:
+      new_bands = np.arange(traj[0,0], traj[-1,0], step)
+      new_traj = resample(traj, new_bands)
+      traj = np.column_stack((new_bands, new_traj))
+
+    # baseline removal
+    bl_obj = transformations['blr_obj']
+    if bl_obj is not None:
+      traj = np.array(traj, copy=copy)
+      seg = transformations['blr_segmented']
+      inv = transformations['blr_inverted']
+      traj[:,1] = bl_obj.fit_transform(*traj.T, segment=seg, invert=inv)
+      copy = False
+
+    # preprocessing
+    pp = transformations['pp']
+    if pp:
+      traj = np.array(traj, copy=copy)
+      traj[:,1] = preprocess(traj[:,1:2].T, pp, wavelengths=traj[:,0],
+                             copy=False).ravel()
+      copy = False
+
+    # insert NaNs
+    nan_gap = transformations['nan_gap']
+    if nan_gap is not None:
+      gap_inds, = np.where(np.diff(traj[:,0]) > nan_gap)
+      traj = np.array(traj, copy=copy)
+      traj[gap_inds, 1] = np.nan
+    return traj
+
+  def _transform_vector(self, bands, ints, transformations):
+    if transformations is None:
+      return bands, ints
+
+    tmp = np.asarray(ints)
+    copy, ints = tmp is ints, tmp
+
+    # mask
+    if transformations['chan_mask']:
+      if self.kind != 'LIBS':
+        raise ValueError('chan_mask transform only applicable to LIBS data')
+      bands = bands[ALAMOS_MASK]
+      ints = ints[:, ALAMOS_MASK]
+      copy = False
+
+    # crop
+    lb, ub, step = transformations['crop']
+    if lb > bands[0]:
+      idx = np.searchsorted(bands, lb)
+      bands, ints = bands[idx:], ints[:, idx:]
+    if ub < bands[-1]:
+      idx = np.searchsorted(bands, ub)
+      bands, ints = bands[:idx], ints[:, :idx]
+
+    # resample (XXX: there may be a better way that doesn't involve looping)
+    if step > 0:
+      num = (bands[-1] - bands[0]) // step + 1
+      new_bands = np.linspace(bands[0], bands[-1], num, endpoint=True)
+      new_ints = np.empty((ints.shape[0], new_bands.shape[0]), dtype=ints.dtype)
+      for i, y in enumerate(ints):
+        new_ints[i] = np.interp(new_bands, bands, y)
+      bands, ints = new_bands, new_ints
+
+    # baseline removal
+    bl_obj = transformations['blr_obj']
+    if bl_obj is not None:
+      ints = np.array(ints, copy=copy)
+      seg = transformations['blr_segmented']
+      inv = transformations['blr_inverted']
+      ints = bl_obj.fit_transform(bands, ints, segment=seg, invert=inv)
+      copy = False
+
+    # preprocessing
+    pp = transformations['pp']
+    if pp:
+      ints = preprocess(ints, pp, wavelengths=bands, copy=copy)
+      copy = False
+
+    # insert NaNs
+    nan_gap = transformations['nan_gap']
+    if nan_gap is not None:
+      gap_inds, = np.where(np.diff(bands) > nan_gap)
+      ints = np.array(ints, copy=copy)
+      ints[:, gap_inds] = np.nan
+    return bands, ints
+
 
 class TrajDataset(Dataset):
   def set_data(self, keys, traj_map, **metadata):
@@ -86,59 +192,6 @@ class TrajDataset(Dataset):
 
   def get_trajectories_by_index(self, indices, transformations=None):
     return self.get_trajectories(self.pkey.index2key(indices), transformations)
-
-  def _transform_traj(self, traj, transformations):
-    if transformations is None:
-      return traj
-
-    if transformations['chan_mask']:
-      raise ValueError('chan_mask transform is not applicable to TrajDataset')
-
-    tmp = np.asarray(traj)
-    copy, traj = tmp is traj, tmp
-
-    # crop
-    lb, ub = transformations['crop']
-    if lb > traj[0,0]:
-      idx = np.searchsorted(traj[:,0], lb)
-      traj = traj[idx:]
-    if ub < traj[-1,0]:
-      idx = np.searchsorted(traj[:,0], ub)
-      traj = traj[:idx]
-
-    # baseline removal
-    bl_obj = transformations['blr_obj']
-    if bl_obj is not None:
-      traj = np.array(traj, copy=copy)
-      seg = transformations['blr_segmented']
-      inv = transformations['blr_inverted']
-      traj[:,1] = bl_obj.fit_transform(*traj.T, segment=seg, invert=inv)
-      copy = False
-
-    # preprocessing
-    pp = transformations['pp']
-    if pp:
-      traj = np.array(traj, copy=copy)
-      traj[:,1] = preprocess(traj[:,1:2].T, pp, wavelengths=traj[:,0],
-                             copy=False).ravel()
-      copy = False
-
-    # insert NaNs
-    nan_gap = transformations['nan_gap']
-    if nan_gap is not None:
-      gap_inds, = np.where(np.diff(traj[:,0]) > nan_gap)
-      traj = np.array(traj, copy=copy)
-      traj[gap_inds, 1] = np.nan
-    return traj
-
-  def resample(self, band_min, band_max, band_step):
-    target_bands = np.arange(band_min, band_max, band_step)
-    intensities = np.empty((self.num_spectra(), len(target_bands)))
-    for i, key in enumerate(self.pkey.keys):
-      intensities[i] = resample(self.traj[key], target_bands)
-    ds = VectorDataset(self.name, self.kind)
-    ds.set_data(target_bands, intensities, pkey=self.pkey, **self.metadata)
-    return ds
 
 
 class VectorDataset(Dataset):
@@ -186,50 +239,3 @@ class VectorDataset(Dataset):
     return [self.get_trajectory_by_index(self.pkey.key2index(key),
                                          transformations)
             for key in keys]
-
-  def _transform_vector(self, bands, ints, transformations):
-    if transformations is None:
-      return bands, ints
-
-    tmp = np.asarray(ints)
-    copy, ints = tmp is ints, tmp
-
-    # mask
-    if transformations['chan_mask']:
-      if self.kind != 'LIBS':
-        raise ValueError('chan_mask transform only applicable to LIBS data')
-      bands = bands[ALAMOS_MASK]
-      ints = ints[:, ALAMOS_MASK]
-      copy = False
-
-    # crop
-    lb, ub = transformations['crop']
-    if lb > bands[0]:
-      idx = np.searchsorted(bands, lb)
-      bands, ints = bands[idx:], ints[:, idx:]
-    if ub < bands[-1]:
-      idx = np.searchsorted(bands, ub)
-      bands, ints = bands[:idx], ints[:, :idx]
-
-    # baseline removal
-    bl_obj = transformations['blr_obj']
-    if bl_obj is not None:
-      ints = np.array(ints, copy=copy)
-      seg = transformations['blr_segmented']
-      inv = transformations['blr_inverted']
-      ints = bl_obj.fit_transform(bands, ints, segment=seg, invert=inv)
-      copy = False
-
-    # preprocessing
-    pp = transformations['pp']
-    if pp:
-      ints = preprocess(ints, pp, wavelengths=bands, copy=copy)
-      copy = False
-
-    # insert NaNs
-    nan_gap = transformations['nan_gap']
-    if nan_gap is not None:
-      gap_inds, = np.where(np.diff(bands) > nan_gap)
-      ints = np.array(ints, copy=copy)
-      ints[:, gap_inds] = np.nan
-    return bands, ints

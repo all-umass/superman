@@ -2,12 +2,13 @@ from __future__ import absolute_import
 import numpy as np
 
 from ..distance import library_search, per_channel_scores
+from ..utils import resample
 
 
 class DatasetView(object):
   def __init__(self, ds, mask=Ellipsis, pp='', blr_obj=None, chan_mask=False,
-               blr_segmented=False, blr_inverted=False, crop=(-np.inf, np.inf),
-               nan_gap=None):
+               blr_segmented=False, blr_inverted=False,
+               crop=(-np.inf, np.inf, 0), nan_gap=None):
     self.ds = ds
     self.mask = mask
     # lazy transformation steps, which get applied to on-demand trajectories
@@ -36,14 +37,24 @@ class DatasetView(object):
       return traj, keys
     return traj
 
-  def get_data(self, return_keys=False):
-    if not hasattr(self.ds, 'intensities'):
-      return self.get_trajectories(return_keys=return_keys)
-    # just return the intensities matrix
-    data = self.ds.intensities[self.mask, :]
-    if return_keys:
-      return data, self.ds.pkey.index2key(self.mask)
-    return data
+  def get_vector_data(self):
+    ds = self.ds
+    if hasattr(ds, 'intensities'):
+      return ds._transform_vector(ds.bands, ds.intensities[self.mask,:],
+                                  self.transformations)
+
+    # resample to vector format
+    lb, ub, step = self.transformations['crop']
+    if step <= 0:
+      raise ValueError('Cannot create vector data from non-resampled trajs.')
+    keys = ds.pkey.index2key(self.mask)
+    xmin = max(lb, min(ds.traj[key][0,0] for key in keys))
+    xmax = min(ub, max(ds.traj[key][-1,0] for key in keys))
+    bands = np.arange(xmin, xmax + step, step)
+    ints = np.zeros((len(keys), len(bands)), dtype=ds.traj[keys[0]].dtype)
+    for i, key in enumerate(keys):
+      ints[i] = resample(ds.traj[key], bands)
+    return ds._transform_vector(bands, ints, self.transformations)
 
   def get_metadata(self, meta_key):
     meta, label = self.ds.find_metadata(meta_key)
