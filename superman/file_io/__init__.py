@@ -69,6 +69,27 @@ def parse_asc(fh):
   return np.column_stack((bands, intensities))
 
 
+def parse_bwspec(fh):
+  # Parser for BWSpec4 ascii files
+  version = next(fh)
+  if not version.startswith('File Version;BWSpec4.'):
+    raise ValueError('Invalid file for BWSpec4.xx format')
+  for line in fh:
+    if line.startswith('Pixel;'):
+      break
+  else:
+    raise ValueError('No data for BWSpec4.xx format')
+  colnames = line.split(';')
+  data = np.genfromtxt(fh, delimiter=';', loose=True, invalid_raise=False)
+  # TODO: also may have Wavenumber, Raman Shift
+  xidx = colnames.index('Wavelength')
+  try:
+    yidx = colnames.index('Dark Subtracted #1')
+  except ValueError:
+    yidx = colnames.index('Raw data #1')
+  return data[:, [xidx, yidx]]
+
+
 def parse_xlsx(fh):
   df = pd.read_excel(fh)
   return spectrum_shaped(df.values)
@@ -79,6 +100,7 @@ PARSERS = {
     'spc': parse_spc,
     'raw': parse_raw,
     'sif': parse_sif,
+    'bwspec': parse_bwspec,
     'rruff': parse_rruff,
     'asc': parse_asc,
     'txt': parse_loose,
@@ -90,7 +112,7 @@ if HAS_PANDAS:
 
 # Try binary formats first, because they fail fast (magic number checks).
 PARSE_ORDER = [PARSERS[k] for k in (
-    'opus', 'spc', 'raw', 'wxd', 'sif', 'xlsx', 'rruff', 'asc'
+    'opus', 'spc', 'raw', 'wxd', 'sif', 'xlsx', 'bwspec', 'rruff', 'asc'
     ) if k in PARSERS]
 
 
