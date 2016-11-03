@@ -2,7 +2,7 @@ import numpy as np
 import operator
 
 __all__ = [
-    'NumericMetadata', 'BooleanMetadata', 'LookupMetadata',
+    'NumericMetadata', 'BooleanMetadata', 'LookupMetadata', 'TagMetadata',
     'CompositionMetadata', 'PrimaryKeyMetadata', 'is_metadata'
 ]
 
@@ -23,6 +23,33 @@ class _BaseMetadata(object):
 
 def is_metadata(obj):
   return isinstance(obj, _BaseMetadata)
+
+
+class _RepeatedMetadata(_BaseMetadata):
+  def __init__(self, arr, dtype, display_name=None, repeats=1):
+    self._display_name = display_name
+    self.num_repeats = repeats
+    self.arr = np.asarray(arr, dtype=dtype)
+
+  def get_array(self, mask=Ellipsis):
+    if self.num_repeats == 1:
+      return self.arr[mask]
+    if mask is Ellipsis:
+      return np.tile(self.arr, self.num_repeats)
+    parts = [self.arr[m] for m in mask.reshape((self.num_repeats, -1))]
+    return np.hstack(parts)
+
+  def get_index(self, idx):
+    return self.arr[idx % self.num_repeats]
+
+  def size(self):
+    return self.arr.shape[0] * self.num_repeats
+
+  def filter(self, arg):
+    mask = self._filter(arg)
+    if self.num_repeats == 1 or not isinstance(mask, np.ndarray):
+      return mask
+    return np.tile(mask, self.num_repeats)
 
 
 def _round(x, d, up=True):
@@ -46,11 +73,9 @@ def _choose_step(ptp, target_number=100):
   return step
 
 
-class NumericMetadata(_BaseMetadata):
+class NumericMetadata(_RepeatedMetadata):
   def __init__(self, arr, step=None, display_name=None, repeats=1):
-    _BaseMetadata.__init__(self, display_name)
-    self.num_repeats = repeats
-    self.arr = np.asarray(arr)
+    _RepeatedMetadata.__init__(self, arr, float, display_name, repeats)
     self.true_bounds = (np.nanmin(self.arr), np.nanmax(self.arr))
     # compute the displayed bounds
     ptp = self.true_bounds[1] - self.true_bounds[0]
@@ -72,31 +97,59 @@ class NumericMetadata(_BaseMetadata):
         step = 1.0
     self.step = step
 
-  def filter(self, bounds):
+  def _filter(self, bounds):
     # Check for the trivial case: all within bounds
     lb, ub = bounds
     tlb, tub = self.true_bounds
     eps = 0.1 * self.step
     if lb - tlb < eps and tub - ub < eps:
       return True
-    mask = (self.arr >= lb) & (self.arr <= ub)
-    if self.num_repeats == 1:
-      return mask
-    return np.tile(mask, self.num_repeats)
+    return (self.arr >= lb) & (self.arr <= ub)
 
-  def get_array(self, mask=Ellipsis):
-    if self.num_repeats == 1:
-      return self.arr[mask]
-    if mask is Ellipsis:
-      return np.tile(self.arr, self.num_repeats)
-    parts = [self.arr[m] for m in mask.reshape((self.num_repeats, -1))]
-    return np.hstack(parts)
 
-  def get_index(self, idx):
-    return self.arr[idx % self.num_repeats]
+class BooleanMetadata(_RepeatedMetadata):
+  def __init__(self, arr, display_name=None, repeats=1):
+    _RepeatedMetadata.__init__(self, arr, bool, display_name, repeats)
 
-  def size(self):
-    return self.arr.shape[0] * self.num_repeats
+  def _filter(self, cond):
+    if cond == 'yes':
+      return self.arr
+    elif cond == 'no':
+      return ~self.arr
+    return True
+
+
+class TagMetadata(_RepeatedMetadata):
+  def __init__(self, taglists, display_name=None, repeats=1):
+    tagset = reduce(set.union, taglists, set())
+    num_tags = len(tagset)
+    assert num_tags <= 64, 'Too many tags for TagMetadata (%d)' % num_tags
+    # find the smallest possible dtype for the bitmasks
+    if num_tags <= 8:
+      dtype = np.uint8
+    elif num_tags <= 16:
+      dtype = np.uint16
+    elif num_tags <= 32:
+      dtype = np.uint32
+    else:
+      dtype = np.uint64
+    # set up mapping of tag -> bitmask
+    bits, unit = dtype(1), dtype(1)
+    self.tags = {}
+    for tag in tagset:
+      self.tags[tag] = bits
+      bits <<= unit
+    # convert taglists to bitmask array
+    arr = np.zeros(len(taglists), dtype=dtype)
+    for i, tags in taglists:
+      arr[i] = sum(self.tags[t] for t in tags)
+    _RepeatedMetadata.__init__(self, arr, dtype, display_name, repeats)
+
+  def _filter(self, tags):
+    bitmask = sum(self.tags[t] for t in tags)
+    if bitmask == 0 or bitmask+1 == 0:
+      return True
+    return np.bitwise_or(bitmask, self.arr).astype(bool)
 
 
 class LookupMetadata(_BaseMetadata):
@@ -123,24 +176,6 @@ class LookupMetadata(_BaseMetadata):
 
   def size(self):
     return self.labels.shape[0]
-
-
-class BooleanMetadata(NumericMetadata):
-  def __init__(self, arr, display_name=None, repeats=1):
-    _BaseMetadata.__init__(self, display_name)
-    self.num_repeats = repeats
-    self.arr = np.asarray(arr, dtype=bool)
-
-  def filter(self, cond):
-    if cond == 'yes':
-      mask = self.arr
-    elif cond == 'no':
-      mask = ~self.arr
-    else:
-      return True
-    if self.num_repeats == 1:
-      return mask
-    return np.tile(mask, self.num_repeats)
 
 
 class CompositionMetadata(_BaseMetadata):
