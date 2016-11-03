@@ -141,7 +141,7 @@ class TagMetadata(_RepeatedMetadata):
       bits <<= unit
     # convert taglists to bitmask array
     arr = np.zeros(len(taglists), dtype=dtype)
-    for i, tags in taglists:
+    for i, tags in enumerate(taglists):
       arr[i] = sum(self.tags[t] for t in tags)
     _RepeatedMetadata.__init__(self, arr, dtype, display_name, repeats)
 
