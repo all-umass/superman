@@ -149,7 +149,7 @@ class TagMetadata(_RepeatedMetadata):
     bitmask = sum(self.tags[t] for t in tags)
     if bitmask == 0 or bitmask+1 == 0:
       return True
-    return np.bitwise_or(bitmask, self.arr).astype(bool)
+    return np.bitwise_and(bitmask, self.arr).astype(bool)
 
 
 class LookupMetadata(_BaseMetadata):
