@@ -84,6 +84,12 @@ class Dataset(object):
       traj[:,1] = bl_obj.fit_transform(*traj.T, segment=seg, invert=inv)
       copy = False
 
+    # y-axis flip
+    if transformations['flip']:
+      traj = np.array(traj, copy=copy)
+      traj[:,1] *= -1
+      copy = False
+
     # preprocessing
     pp = transformations['pp']
     if pp:
@@ -140,6 +146,12 @@ class Dataset(object):
       seg = transformations['blr_segmented']
       inv = transformations['blr_inverted']
       ints = bl_obj.fit_transform(bands, ints, segment=seg, invert=inv)
+      copy = False
+
+    # y-axis flip
+    if transformations['flip']:
+      ints = np.array(ints, copy=copy)
+      ints *= -1
       copy = False
 
     # preprocessing

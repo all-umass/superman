@@ -7,15 +7,16 @@ from ..utils import resample
 
 class DatasetView(object):
   def __init__(self, ds, mask=Ellipsis, pp='', blr_obj=None, chan_mask=False,
-               blr_segmented=False, blr_inverted=False,
+               blr_segmented=False, blr_inverted=False, flip=False,
                crop=(-np.inf, np.inf, 0), nan_gap=None):
     self.ds = ds
     self.mask = mask
     # lazy transformation steps, which get applied to on-demand trajectories
     self.transformations = dict(pp=pp, blr_obj=blr_obj,
                                 blr_segmented=blr_segmented,
-                                blr_inverted=blr_inverted, crop=crop,
-                                nan_gap=nan_gap, chan_mask=chan_mask)
+                                blr_inverted=blr_inverted,
+                                flip=flip, crop=crop, nan_gap=nan_gap,
+                                chan_mask=chan_mask)
 
   def __str__(self):
     return '<DatasetView of "%s": %r>' % (self.ds, self.transformations)
