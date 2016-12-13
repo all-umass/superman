@@ -53,15 +53,22 @@ def fit_single_peak(bands, intensities, loc, fit_kind='lorentzian',
   params = (loc, max(0, area_guess), 2 * band_resolution)
   if loc_fixed:
     params = params[1:]
+  # in case we don't get any successful curve_fit results
+  pcov = np.zeros((3, 3))
 
   # Keep fitting until loc (x0) converges, or just one round for loc_fixed
   log_fn('Starting %s: params=%s' % (fit_kind, params))
   for i in xrange(max_iter):
     # Weight the channels based on distance from the approx. peak loc
     w = 1 + ((bands - loc)/band_resolution)**2
-    params, pcov = curve_fit(fit_func, bands, intensities, p0=params, sigma=w)
+    try:
+      params, pcov = curve_fit(fit_func, bands, intensities, p0=params, sigma=w)
+    except RuntimeError as e:
+      if e.message.startswith('Optimal parameters not found'):
+        log_fn('%s fit #%d: %s' % (fit_kind, i+1, e.message))
+        break
+      raise e
     log_fn('%s fit #%d: params=%s' % (fit_kind, i+1, params.tolist()))
-    fit_data = fit_func(bands, *params)
     # Check for convergence in peak location
     if loc_fixed or abs(loc - params[0]) < 1.0:
       break
@@ -70,6 +77,7 @@ def fit_single_peak(bands, intensities, loc, fit_kind='lorentzian',
     log_fn('_fit_single_peak failed to converge in %d iterations' % max_iter)
 
   # Select channels in the top 99% of intensity
+  fit_data = fit_func(bands, *params)
   cutoff = fit_data.min()*0.99 + fit_data.max()*0.01
   mask = fit_data > cutoff
   peak_x = bands[mask]
