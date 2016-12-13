@@ -62,6 +62,16 @@ class DatasetView(object):
     data = meta.get_array(self.mask)
     return data, label
 
+  def get_primary_keys(self):
+    if self.ds.pkey is not None:
+      return self.ds.pkey.index2key(self.mask)
+    # create fake pkeys based on the mask
+    if isinstance(self.mask, np.ndarray) and self.mask.dtype is bool:
+      idx, = np.where(self.mask)
+    else:
+      idx = np.arange(len(self.mask))[self.mask]
+    return ['Spectrum %d' % i for i in idx]
+
   def compute_line(self, bounds):
     assert len(bounds) in (2, 4)
 
