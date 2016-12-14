@@ -2,6 +2,7 @@ from __future__ import print_function, absolute_import, division
 import numpy as np
 import scipy.optimize
 import scipy.integrate
+from itertools import combinations_with_replacement
 from six.moves import xrange
 
 from .common import PeakFinder
@@ -37,27 +38,114 @@ def fit_single_peak(bands, intensities, loc, fit_kind='lorentzian',
                     max_iter=10, log_fn=print, band_resolution=1,
                     loc_fixed=False):
   # deal with bad scaling
-  scale = intensities.max()
-  if scale >= 100:
-    intensities = intensities / scale
-  else:
-    scale = 1
+  intensities, scale = _scale_spectrum(intensities)
 
   # Get the appropriate function to fit
   fit_func = _get_peak_function(fit_kind, loc, loc_fixed)
 
   # Choose reasonable starting parameters: (loc, area, fwhm)
-  idx = np.searchsorted(bands, loc)
-  i, j = max(0, idx-4), idx+5
-  area_guess = scipy.integrate.trapz(intensities[i:j], bands[i:j])
-  params = (loc, max(0, area_guess), 2 * band_resolution)
+  area_guess = _guess_area(bands, intensities, loc)
+  params = (loc, area_guess, 2 * band_resolution)
   if loc_fixed:
     params = params[1:]
-  # in case we don't get any successful curve_fit results
-  pcov = np.zeros((3, 3))
+    max_iter = 1
 
   # Keep fitting until loc (x0) converges, or just one round for loc_fixed
-  log_fn('Starting %s: params=%s' % (fit_kind, params))
+  params, pstd = _weighted_curve_fit(bands, intensities, loc, fit_func, params,
+                                     max_iter=max_iter, log_fn=log_fn,
+                                     log_label=fit_kind,
+                                     band_resolution=band_resolution)
+
+  # Calculate peak info
+  if loc_fixed:
+    area, fwhm = map(float, params)
+    area_std, fwhm_std = map(float, pstd)
+    loc_std = 0
+    height = float(fit_func(loc, area, fwhm))
+  else:
+    loc, area, fwhm = map(float, params)
+    loc_std, area_std, fwhm_std = map(float, pstd)
+    height = float(fit_func(loc, loc, area, fwhm))
+
+  # Select channels in the top 99% of intensity
+  mask, peak_x, peak_y = _select_top99(bands, fit_func, params)
+
+  # restore original scaling
+  peak_y *= scale
+  area *= scale
+  area_std *= scale
+  height *= scale
+
+  peak_data = dict(xmin=float(peak_x[0]), xmax=float(peak_x[-1]), height=height,
+                   center=loc, area=area, fwhm=fwhm, center_std=loc_std,
+                   area_std=area_std, fwhm_std=fwhm_std)
+  return mask, peak_y, peak_data
+
+
+def fit_composite_peak(bands, intensities, loc, num_peaks=2, max_iter=10,
+                       fit_kinds=('lorentzian', 'gaussian'), log_fn=print,
+                       band_resolution=1):
+  # deal with bad scaling
+  intensities, scale = _scale_spectrum(intensities)
+
+  # get the appropriate function(s) to fit
+  fit_funcs = {k: _get_peak_function(k, None, False) for k in fit_kinds}
+
+  # find reasonable approximations for initial parameters: (loc, area, fwhm)
+  loc_guesses = np.linspace(loc-band_resolution, loc+band_resolution, num_peaks)
+  area_guess = _guess_area(bands, intensities, loc) / num_peaks
+  fwhm_guess = 2 * band_resolution / num_peaks
+  init_params = (tuple(loc_guesses) +
+                 (area_guess,) * num_peaks +
+                 (fwhm_guess,) * num_peaks)
+  loc_idx = slice(0, num_peaks)
+
+  # try all combinations of peaks, use the one that matches best
+  combs = []
+  for fit_keys in combinations_with_replacement(fit_funcs, num_peaks):
+    label = '+'.join(fit_keys)
+    fit_func = _combine_peak_functions([fit_funcs[k] for k in fit_keys])
+    params, pstd = _weighted_curve_fit(
+        bands, intensities, loc, fit_func, init_params,
+        max_iter=max_iter, log_fn=log_fn, log_label=label,
+        band_resolution=band_resolution, loc_idx=loc_idx)
+    mask, peak_x, peak_y = _select_top99(bands, fit_func, params)
+    residual = np.linalg.norm(peak_y - intensities[mask])
+    log_fn('composite %s residual: %g' % (label, residual))
+    combs.append((residual, fit_keys, fit_func, params, pstd,
+                  mask, peak_x, peak_y))
+  residual, fit_keys, fit_func, params, pstd, mask, peak_x, peak_y = min(combs)
+
+  # Calculate peak info, with original scaling
+  peak_data = dict(xmin=float(peak_x[0]), xmax=float(peak_x[-1]),
+                   fit_kinds=fit_keys, height=[], center=[], area=[], fwhm=[],
+                   center_std=[], area_std=[], fwhm_std=[])
+  peak_ys = [peak_y * scale]
+  for i, k in enumerate(fit_keys):
+    fn = fit_funcs[k]
+    loc, area, fwhm = map(float, params[i::num_peaks])
+    loc_std, area_std, fwhm_std = map(float, pstd[i::num_peaks])
+    peak_ys.append(fn(peak_x, loc, area, fwhm) * scale)
+    height = float(fn(loc, loc, area, fwhm))
+    peak_data['height'].append(height * scale)
+    peak_data['center'].append(loc)
+    peak_data['center_std'].append(loc_std)
+    peak_data['area'].append(area * scale)
+    peak_data['area_std'].append(area_std * scale)
+    peak_data['fwhm'].append(fwhm)
+    peak_data['fwhm_std'].append(fwhm_std)
+
+  peak_y *= scale
+  return mask, peak_ys, peak_data
+
+
+def _weighted_curve_fit(bands, intensities, loc, fit_func, params,
+                        max_iter=10, log_fn=print, log_label='',
+                        band_resolution=1, loc_idx=0):
+  # initial value, in case none of the curve_fit calls succeed
+  pcov = np.zeros((len(params),) * 2)
+  # Keep fitting until loc (x0) converges
+  log_fn('Starting %s: params=%s' % (log_label, params))
   for i in xrange(max_iter):
     # Weight the channels based on distance from the approx. peak loc
     w = 1 + ((bands - loc)/band_resolution)**2
@@ -65,45 +153,44 @@ def fit_single_peak(bands, intensities, loc, fit_kind='lorentzian',
       params, pcov = curve_fit(fit_func, bands, intensities, p0=params, sigma=w)
     except RuntimeError as e:
       if e.message.startswith('Optimal parameters not found'):
-        log_fn('%s fit #%d: %s' % (fit_kind, i+1, e.message))
+        log_fn('%s fit #%d: %s' % (log_label, i+1, e.message))
         break
       raise e
-    log_fn('%s fit #%d: params=%s' % (fit_kind, i+1, params.tolist()))
+    log_fn('%s fit #%d: params=%s' % (log_label, i+1, params.tolist()))
     # Check for convergence in peak location
-    if loc_fixed or abs(loc - params[0]) < 1.0:
+    new_loc = params[loc_idx].mean()
+    if max_iter == 1 or abs(loc - new_loc) < 1.0:
       break
-    loc = params[0]
+    loc = new_loc
   else:
-    log_fn('_fit_single_peak failed to converge in %d iterations' % max_iter)
+    log_fn('_weighted_curve_fit failed to converge in %d iterations' % max_iter)
+  return params, np.sqrt(np.diag(pcov))
 
-  # Select channels in the top 99% of intensity
+
+def _select_top99(bands, fit_func, params):
   fit_data = fit_func(bands, *params)
+  # TODO: decide if np.percentile(fit_data, 1) is a better cutoff
   cutoff = fit_data.min()*0.99 + fit_data.max()*0.01
   mask = fit_data > cutoff
   peak_x = bands[mask]
-  peak_y = scale * fit_data[mask]
+  peak_y = fit_data[mask]
+  return mask, peak_x, peak_y
 
-  # Calculate peak info
-  if loc_fixed:
-    area, fwhm = map(float, params)
-    area_std, fwhm_std = map(float, np.sqrt(np.diag(pcov)))
-    loc_std = 0
+
+def _guess_area(bands, intensities, loc):
+  idx = np.searchsorted(bands, loc)
+  i, j = max(0, idx-4), idx+5
+  area_guess = scipy.integrate.trapz(intensities[i:j], bands[i:j])
+  return max(0, area_guess)
+
+
+def _scale_spectrum(intensities):
+  scale = intensities.max()
+  if scale >= 100:
+    intensities = intensities / scale
   else:
-    loc, area, fwhm = map(float, params)
-    loc_std, area_std, fwhm_std = map(float, np.sqrt(np.diag(pcov)))
-
-  # restore original scaling
-  area *= scale
-  area_std *= scale
-
-  if loc_fixed:
-    height = float(fit_func(loc, area, fwhm))
-  else:
-    height = float(fit_func(loc, loc, area, fwhm))
-  peak_data = dict(xmin=float(peak_x[0]), xmax=float(peak_x[-1]), height=height,
-                   center=loc, area=area, fwhm=fwhm, center_std=loc_std,
-                   area_std=area_std, fwhm_std=fwhm_std)
-  return mask, peak_y, peak_data
+    scale = 1
+  return intensities, scale
 
 
 def _get_peak_function(fit_kind, loc, loc_fixed):
@@ -125,6 +212,17 @@ def _get_peak_function(fit_kind, loc, loc_fixed):
   else:
     raise ValueError('Unsupported fit_kind: %s' % fit_kind)
   return peak
+
+
+def _combine_peak_functions(fns):
+  num_peaks = len(fns)
+  if num_peaks == 1:
+    return fns[0]
+
+  def composite_peak(x, *params):
+    return sum(fn(x, *params[i::num_peaks]) for i, fn in enumerate(fns))
+
+  return composite_peak
 
 
 def _dummy(*args, **kwargs):
