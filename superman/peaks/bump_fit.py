@@ -37,6 +37,33 @@ class BumpFit(PeakFinder):
 def fit_single_peak(bands, intensities, loc, fit_kind='lorentzian',
                     max_iter=10, log_fn=print, band_resolution=1,
                     loc_fixed=False):
+  """Fit a peak to a spectral feature by iterated least-squares curve-fitting.
+
+  bands : array-like
+    X-axis values of the spectrum.
+
+  intensities : array-like
+    Y-axis values of the spectrum, same shape as bands.
+
+  loc : float
+    Guess at the location (in x-axis units) of the peak center.
+
+  fit_kind : str, optional
+    Type of peak to fit, may be 'lorentzian' or 'gaussian'.
+
+  max_iter : int, optional
+    Maximum number of iterations of weighted least squares curve fitting.
+
+  log_fn : callable, optional
+    Function which accepts a single str argument, used for log messages.
+
+  band_resolution : int, optional
+    Estimation of a useful delta-x.
+
+  loc_fixed : bool, optional
+    When True, only runs one iteration of fitting and doesn't allow the center
+    of the fitted peak to move from the given value (loc).
+  """
   # deal with bad scaling
   intensities, scale = _scale_spectrum(intensities)
 
@@ -82,9 +109,21 @@ def fit_single_peak(bands, intensities, loc, fit_kind='lorentzian',
   return mask, peak_y, peak_data
 
 
-def fit_composite_peak(bands, intensities, loc, num_peaks=2, max_iter=10,
+def fit_composite_peak(bands, intensities, locs, num_peaks=2, max_iter=10,
                        fit_kinds=('lorentzian', 'gaussian'), log_fn=print,
                        band_resolution=1):
+  """Fit several peaks to a single spectral feature.
+
+  locs : sequence of float
+    Contains num_peaks peak-location guesses,
+    or a single feature-location guess.
+
+  fit_kinds : sequence of str
+    Specifies all the peak types that the composite may be made of.
+    Not all fit_kinds are guaranteed to appear in the final composite fit.
+
+  See fit_single_peak for details about the other arguments.
+  """
   # deal with bad scaling
   intensities, scale = _scale_spectrum(intensities)
 
@@ -92,8 +131,16 @@ def fit_composite_peak(bands, intensities, loc, num_peaks=2, max_iter=10,
   fit_funcs = {k: _get_peak_function(k, None, False) for k in fit_kinds}
 
   # find reasonable approximations for initial parameters: (loc, area, fwhm)
-  loc_guesses = np.linspace(loc-band_resolution, loc+band_resolution, num_peaks)
-  area_guess = _guess_area(bands, intensities, loc) / num_peaks
+  if len(locs) == num_peaks:
+    loc_guesses = locs
+  elif len(locs) == 1:
+    loc_guesses = np.linspace(locs[0]-band_resolution, locs[0]+band_resolution,
+                              num_peaks)
+  else:
+    raise ValueError('Number of locs (%d) != number of peaks (%d)' % (
+                     len(locs), num_peaks))
+  mean_loc = np.mean(locs)
+  area_guess = _guess_area(bands, intensities, mean_loc) / num_peaks
   fwhm_guess = 2 * band_resolution / num_peaks
   init_params = (tuple(loc_guesses) +
                  (area_guess,) * num_peaks +
@@ -106,7 +153,7 @@ def fit_composite_peak(bands, intensities, loc, num_peaks=2, max_iter=10,
     label = '+'.join(fit_keys)
     fit_func = _combine_peak_functions([fit_funcs[k] for k in fit_keys])
     params, pstd = _weighted_curve_fit(
-        bands, intensities, loc, fit_func, init_params,
+        bands, intensities, mean_loc, fit_func, init_params,
         max_iter=max_iter, log_fn=log_fn, log_label=label,
         band_resolution=band_resolution, loc_idx=loc_idx)
     mask, peak_x, peak_y = _select_top99(bands, fit_func, params)
