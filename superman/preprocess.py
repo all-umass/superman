@@ -32,13 +32,20 @@ def preprocess(spectra, pp_string, wavelengths=None, copy=True):
 
 def crop_resample(bands, intensities, crops):
   intensities = np.atleast_2d(intensities)
+  crops = sorted(crops)
+  # check that each chunk doesn't overlap with any other
+  prev_ub = float('-inf')
+  for lb, ub, step in crops:
+    if lb < prev_ub:
+      raise ValueError('Overlapping crop regions')
+    prev_ub = ub
   # do all the band lookups at once
-  locs = sorted(set(c[0] for c in crops) + set(c[1] for c in crops))
+  locs = sorted(set(c[0] for c in crops).union(set(c[1] for c in crops)))
   idxs = np.searchsorted(bands, locs)
   loc_idxs = dict(zip(locs, idxs))
   # crop/resample each chunk separately
   xs, ys = [], []
-  for lb, ub, step in sorted(crops):
+  for lb, ub, step in crops:
     s = slice(loc_idxs[lb], loc_idxs[ub])
     x = bands[s]
     if step > 0:

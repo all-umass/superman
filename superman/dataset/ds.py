@@ -63,7 +63,8 @@ class Dataset(object):
     # crop / resample (but keep the trajectory format)
     crops = transformations['crop']
     if crops:
-      traj = np.column_stack(crop_resample(traj[:,0], traj[:,1], crops))
+      x, y = crop_resample(traj[:,0], traj[:,1], crops)
+      traj = np.column_stack((x, y[0]))
       copy = False
 
     # baseline removal
