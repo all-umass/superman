@@ -53,22 +53,24 @@ class DatasetView(object):
     xmin = float('inf')
     xmax = float('-inf')
     for key in keys:
-      t = ds.traj[key][:,0]
-      xmin = min(xmin, t[0])
-      xmax = max(xmax, t[-1])
+      x = ds.traj[key][:,0]
+      xmin = min(xmin, x[0])
+      xmax = max(xmax, x[-1])
 
     # compute new bands and allocate an intensities matrix for each crop
     x_chunks, y_chunks = [], []
     for lb, ub, step in crops:
       assert step > 0
       x_new = np.arange(max(lb, xmin), min(ub, xmax) + step, step)
-      y_new = np.zeros((len(keys), len(x_new)), dtype=t.dtype)
+      y_new = np.zeros((len(keys), len(x_new)), dtype=x.dtype)
       x_chunks.append(x_new)
       y_chunks.append(y_new)
 
     # actually do the resampling for each traj for each crop
     for i, key in enumerate(keys):
-      x, y = ds.traj[key].T
+      t = ds.traj[key]
+      x = t[:,0]
+      y = t[:,1]
       for c, bands in enumerate(x_chunks):
         y_chunks[c][i] = np.interp(bands, x, y)
 
