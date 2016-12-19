@@ -36,7 +36,7 @@ def crop_resample(bands, intensities, crops):
   # check that each chunk is valid and doesn't overlap with any other
   prev_ub = float('-inf')
   for lb, ub, step in crops:
-    if ub >= lb:
+    if ub <= lb:
       raise ValueError('Invalid crop region')
     if lb < prev_ub:
       raise ValueError('Overlapping crop regions')
