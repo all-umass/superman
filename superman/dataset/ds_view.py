@@ -2,13 +2,12 @@ from __future__ import absolute_import
 import numpy as np
 
 from ..distance import library_search, per_channel_scores
-from ..utils import resample
 
 
 class DatasetView(object):
   def __init__(self, ds, mask=Ellipsis, pp='', blr_obj=None, chan_mask=False,
                blr_segmented=False, blr_inverted=False, flip=False,
-               crop=(-np.inf, np.inf, 0), nan_gap=None):
+               crop=(), nan_gap=None):
     self.ds = ds
     self.mask = mask
     # lazy transformation steps, which get applied to on-demand trajectories
@@ -44,17 +43,38 @@ class DatasetView(object):
       return ds._transform_vector(ds.bands, ds.intensities[self.mask,:],
                                   self.transformations)
 
-    # resample to vector format
-    lb, ub, step = self.transformations['crop']
-    if step <= 0:
+    # resample to vector format (if we have enough crop info to do so)
+    crops = self.transformations['crop']
+    if not (crops and all(c[2] > 0 for c in crops)):
       raise ValueError('Cannot create vector data from non-resampled trajs.')
+
+    # find the min and max x values over all trajs
     keys = ds.pkey.index2key(self.mask)
-    xmin = max(lb, min(ds.traj[key][0,0] for key in keys))
-    xmax = min(ub, max(ds.traj[key][-1,0] for key in keys))
-    bands = np.arange(xmin, xmax + step, step)
-    ints = np.zeros((len(keys), len(bands)), dtype=ds.traj[keys[0]].dtype)
+    xmin = float('inf')
+    xmax = float('-inf')
+    for key in keys:
+      t = ds.traj[key][:,0]
+      xmin = min(xmin, t[0])
+      xmax = max(xmax, t[-1])
+
+    # compute new bands and allocate an intensities matrix for each crop
+    x_chunks, y_chunks = [], []
+    for lb, ub, step in crops:
+      assert step > 0
+      x_new = np.arange(max(lb, xmin), min(ub, xmax) + step, step)
+      y_new = np.zeros((len(keys), len(x_new)), dtype=t.dtype)
+      x_chunks.append(x_new)
+      y_chunks.append(y_new)
+
+    # actually do the resampling for each traj for each crop
     for i, key in enumerate(keys):
-      ints[i] = resample(ds.traj[key], bands)
+      x, y = ds.traj[key].T
+      for c, bands in enumerate(x_chunks):
+        y_chunks[c][i] = np.interp(bands, x, y)
+
+    # stick the chunks together
+    bands = np.concatenate(x_chunks)
+    ints = np.hstack(y_chunks)
     return ds._transform_vector(bands, ints, self.transformations)
 
   def get_metadata(self, meta_key):

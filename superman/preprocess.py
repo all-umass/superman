@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import numpy as np
 import scipy.signal
 import scipy.sparse
@@ -27,6 +28,29 @@ def preprocess(spectra, pp_string, wavelengths=None, copy=True):
     tt[:,1] = pp_fn(t[:,1:2].T, t[:,0]).ravel()
     pp.append(tt)
   return pp
+
+
+def crop_resample(bands, intensities, crops):
+  intensities = np.atleast_2d(intensities)
+  # do all the band lookups at once
+  locs = sorted(set(c[0] for c in crops) + set(c[1] for c in crops))
+  idxs = np.searchsorted(bands, locs)
+  loc_idxs = dict(zip(locs, idxs))
+  # crop/resample each chunk separately
+  xs, ys = [], []
+  for lb, ub, step in sorted(crops):
+    s = slice(loc_idxs[lb], loc_idxs[ub])
+    x = bands[s]
+    if step > 0:
+      x_new = np.arange(x[0], x[-1] + step, step)
+      y_new = np.row_stack([np.interp(x_new, x, y) for y in intensities[:, s]])
+      xs.append(x_new)
+      ys.append(y_new)
+    else:
+      xs.append(x)
+      ys.append(intensities[:, s])
+  # glue all the chunks back together
+  return np.concatenate(xs), np.hstack(ys)
 
 
 def _make_pp(pp_string):

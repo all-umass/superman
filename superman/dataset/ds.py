@@ -1,8 +1,8 @@
 from __future__ import absolute_import
 import numpy as np
 
-from ..preprocess import preprocess
-from ..utils import ALAMOS_MASK, resample
+from ..preprocess import preprocess, crop_resample
+from ..utils import ALAMOS_MASK
 from .metadata import is_metadata, PrimaryKeyMetadata
 from .ds_view import DatasetView
 
@@ -60,20 +60,11 @@ class Dataset(object):
     tmp = np.asarray(traj)
     copy, traj = tmp is traj, tmp
 
-    # crop
-    lb, ub, step = transformations['crop']
-    if lb > traj[0,0]:
-      idx = np.searchsorted(traj[:,0], lb)
-      traj = traj[idx:]
-    if ub < traj[-1,0]:
-      idx = np.searchsorted(traj[:,0], ub)
-      traj = traj[:idx]
-
-    # resample (but keep the trajectory format)
-    if step > 0:
-      new_bands = np.arange(traj[0,0], traj[-1,0], step)
-      new_traj = resample(traj, new_bands)
-      traj = np.column_stack((new_bands, new_traj))
+    # crop / resample (but keep the trajectory format)
+    crops = transformations['crop']
+    if crops:
+      traj = np.column_stack(crop_resample(traj[:,0], traj[:,1], crops))
+      copy = False
 
     # baseline removal
     bl_obj = transformations['blr_obj']
@@ -121,23 +112,11 @@ class Dataset(object):
       ints = ints[:, ALAMOS_MASK]
       copy = False
 
-    # crop
-    lb, ub, step = transformations['crop']
-    if lb > bands[0]:
-      idx = np.searchsorted(bands, lb)
-      bands, ints = bands[idx:], ints[:, idx:]
-    if ub < bands[-1]:
-      idx = np.searchsorted(bands, ub)
-      bands, ints = bands[:idx], ints[:, :idx]
-
-    # resample (XXX: there may be a better way that doesn't involve looping)
-    if step > 0:
-      num = (bands[-1] - bands[0]) // step + 1
-      new_bands = np.linspace(bands[0], bands[-1], num, endpoint=True)
-      new_ints = np.empty((ints.shape[0], new_bands.shape[0]), dtype=ints.dtype)
-      for i, y in enumerate(ints):
-        new_ints[i] = np.interp(new_bands, bands, y)
-      bands, ints = new_bands, new_ints
+    # crop/resample
+    crops = transformations['crop']
+    if crops:
+      bands, ints = crop_resample(bands, ints, crops)
+      copy = False
 
     # baseline removal
     bl_obj = transformations['blr_obj']
