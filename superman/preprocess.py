@@ -33,9 +33,11 @@ def preprocess(spectra, pp_string, wavelengths=None, copy=True):
 def crop_resample(bands, intensities, crops):
   intensities = np.atleast_2d(intensities)
   crops = sorted(crops)
-  # check that each chunk doesn't overlap with any other
+  # check that each chunk is valid and doesn't overlap with any other
   prev_ub = float('-inf')
   for lb, ub, step in crops:
+    if ub >= lb:
+      raise ValueError('Invalid crop region')
     if lb < prev_ub:
       raise ValueError('Overlapping crop regions')
     prev_ub = ub
