@@ -51,7 +51,9 @@ def crop_resample(bands, intensities, crops):
     s = slice(loc_idxs[lb], loc_idxs[ub])
     x = bands[s]
     if step > 0:
-      x_new = np.arange(x[0], x[-1] + step, step)
+      lb = lb if np.isfinite(lb) else x[0]
+      ub = ub if np.isfinite(ub) else x[-1] + step
+      x_new = np.arange(lb, ub, step)
       y_new = np.row_stack([np.interp(x_new, x, y) for y in intensities[:, s]])
       xs.append(x_new)
       ys.append(y_new)
