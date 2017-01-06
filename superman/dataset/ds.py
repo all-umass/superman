@@ -107,8 +107,9 @@ class Dataset(object):
 
     # mask
     if transformations['chan_mask']:
-      if self.kind != 'LIBS':
-        raise ValueError('chan_mask transform only applicable to LIBS data')
+      if self.kind != 'LIBS' or len(bands) != 6144:
+        raise ValueError('chan_mask transform is only applicable to '
+                         'LIBS data with 6144 channels')
       bands = bands[ALAMOS_MASK]
       ints = ints[:, ALAMOS_MASK]
       copy = False
