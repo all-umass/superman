@@ -77,7 +77,11 @@ class DatasetView(object):
     # stick the chunks together
     bands = np.concatenate(x_chunks)
     ints = np.hstack(y_chunks)
-    return ds._transform_vector(bands, ints, self.transformations)
+
+    # remove crop information from the transforms
+    trans = dict(self.transformations)
+    del trans['crop']
+    return ds._transform_vector(bands, ints, trans)
 
   def get_metadata(self, meta_key):
     meta, label = self.ds.find_metadata(meta_key)
