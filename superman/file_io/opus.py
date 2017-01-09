@@ -66,8 +66,7 @@ Parameter = Struct(
 
 
 def is_ParameterList(block):
-  bt = block.BlockType
-  return bt.param != 0 or bt.extend == 1
+  return block.BlockType.param != 0
 
 ParameterList = RepeatUntil(lambda obj, ctx: obj.Name == 'END', Parameter)
 FloatData = Array(lambda ctx: ctx.BlockLength, LFloat32(''))
@@ -82,8 +81,8 @@ DirectoryEntry = Struct(
         lambda ctx: ctx.DataPtr,
         FunctionSwitch('Block', [
             (is_ParameterList, ParameterList),
-            (lambda ctx: ctx.BlockType.data not in (0,13), OnDemand(FloatData)),
-            (lambda ctx: ctx.BlockType.extend != 0, OnDemand(StringData))
+            (lambda ctx: ctx.BlockType.extend != 0, OnDemand(StringData)),
+            (lambda ctx: ctx.BlockType.data not in (0,13), OnDemand(FloatData))
         ])
     )
 )
@@ -110,38 +109,38 @@ def iter_blocks(opus_data):
 
 def prettyprint_opus(data):
   np.set_printoptions(precision=4, suppress=True)
-  print('OPUS file, version', data.Version)
-  print('Parsed', data.CurrDirSize, 'directory blocks')
-  for i, (label, d) in enumerate(iter_blocks(data)):
-    print(i+1, label, end=' ')
+  print('OPUS file, version', data.Version,
+        '%d/%d blocks' % (data.CurrDirSize, data.MaxDirSize))
+  for label, d in iter_blocks(data):
+    print('[%x:%x]' % (d.DataPtr, d.DataPtr+d.BlockLength*4), label)
     if d.Block is None:
-      print('(bytes %d-%d)' % (d.DataPtr, d.DataPtr+d.BlockLength*4))
       continue
-    print(':')
     if is_ParameterList(d):
       for p in d.Block[:-1]:  # Don't bother printing the END block.
         print('   ', p.Name, p.Value)
     else:
       foo = np.array(d.Block.value)
-      print('    data:', foo.shape, foo)
+      print('    data:', foo.shape, foo[:6] if foo.ndim > 0 else foo)
 
 
 def plot_opus(data, title_pattern=''):
   from matplotlib import pyplot
   plot_info = defaultdict(dict)
   for label, d in iter_blocks(data):
-    if d.Block is None or d.BlockType.data == 0:
+    if d.Block is None:
       continue
     if label.endswith('data status parameters'):
       key = label[:-23]
       plot_info[key]['params'] = dict((p.Name, p.Value) for p in d.Block)
-    else:
+    elif d.BlockType.data != 0 and d.BlockType.extend == 0:
       plot_info[label]['data'] = np.array(d.Block.value)
   DXU_values = {
       'WN': 'Wavenumber (1/cm)', 'MI': 'Micron', 'LGW': 'log Wavenumber',
       'MIN': 'Minutes', 'PNT': 'Points'
   }
   for label, foo in plot_info.items():
+    if 'data' not in foo or 'params' not in foo:
+      continue
     y_type, title = label.split(' ', 1)
     if title_pattern not in title:
       print('Skipping "%s"' % title)
