@@ -164,6 +164,7 @@ def parse_traj(fh, return_params=False):
   if hasattr(fh, 'mode') and 'b' not in fh.mode:
     fh = open(fh.name, 'rb')
   data = OpusFile.parse_stream(fh)
+  y_vals = None
   for label, d in iter_blocks(data):
     if label == 'sample origin parameters':
       sample_params = dict((p.Name, p.Value) for p in d.Block)
@@ -172,13 +173,15 @@ def parse_traj(fh, return_params=False):
       continue
     if label.endswith('data status parameters'):
       params = dict((p.Name, p.Value) for p in d.Block)
-    else:
+    elif d.BlockType.data != 0 and d.BlockType.extend == 0:
       y_vals = np.array(d.Block.value)
       # Hacky fix for a strange issue where the first/last value is exactly zero
       if y_vals[0] == 0 and y_vals[1] > 1.0:
         y_vals = y_vals[1:]
       if y_vals[-1] == 0 and y_vals[-2] > 1.0:
         y_vals = y_vals[:-1]
+  if y_vals is None:
+    raise ValueError('No ratio data found.')
 
   y_vals *= params['CSF']  # CSF == scale factor
   x_vals = np.linspace(params['FXV'], params['LXV'], len(y_vals))
