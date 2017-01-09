@@ -165,6 +165,7 @@ def parse_traj(fh, return_params=False):
     fh = open(fh.name, 'rb')
   data = OpusFile.parse_stream(fh)
   y_vals = None
+  sample_params = None
   for label, d in iter_blocks(data):
     if label == 'sample origin parameters':
       sample_params = dict((p.Name, p.Value) for p in d.Block)
