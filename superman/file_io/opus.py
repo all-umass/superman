@@ -57,10 +57,7 @@ Parameter = Struct(
         Switch('Value', lambda ctx: ctx.Type, {
             'INT32': ULInt32(''),
             'REAL64': LFloat64(''),
-            'STRING': FixedSizeCString('', lambda ctx: ctx.ReservedSpace*2),
-            'ENUM': FixedSizeCString('', lambda ctx: ctx.ReservedSpace*2),
-            'SENUM': FixedSizeCString('', lambda ctx: ctx.ReservedSpace*2),
-        })
+        }, FixedSizeCString('', lambda ctx: ctx.ReservedSpace*2))
     )
 )
 
@@ -105,57 +102,6 @@ def iter_blocks(opus_data):
       break
     label = prettyprint_blocktype(d.BlockType)
     yield label, d
-
-
-def prettyprint_opus(data):
-  np.set_printoptions(precision=4, suppress=True)
-  print('OPUS file, version', data.Version,
-        '%d/%d blocks' % (data.CurrDirSize, data.MaxDirSize))
-  for label, d in iter_blocks(data):
-    print('[%x:%x]' % (d.DataPtr, d.DataPtr+d.BlockLength*4), label)
-    if d.Block is None:
-      continue
-    if is_ParameterList(d):
-      for p in d.Block[:-1]:  # Don't bother printing the END block.
-        print('   ', p.Name, p.Value)
-    else:
-      foo = np.array(d.Block.value)
-      print('    data:', foo.shape, foo[:6] if foo.ndim > 0 else foo)
-
-
-def plot_opus(data, title_pattern=''):
-  from matplotlib import pyplot
-  plot_info = defaultdict(dict)
-  for label, d in iter_blocks(data):
-    if d.Block is None:
-      continue
-    if label.endswith('data status parameters'):
-      key = label[:-23]
-      plot_info[key]['params'] = dict((p.Name, p.Value) for p in d.Block)
-    elif d.BlockType.data != 0 and d.BlockType.extend == 0:
-      plot_info[label]['data'] = np.array(d.Block.value)
-  DXU_values = {
-      'WN': 'Wavenumber (1/cm)', 'MI': 'Micron', 'LGW': 'log Wavenumber',
-      'MIN': 'Minutes', 'PNT': 'Points'
-  }
-  for label, foo in plot_info.items():
-    if 'data' not in foo or 'params' not in foo:
-      continue
-    y_type, title = label.split(' ', 1)
-    if title_pattern not in title:
-      print('Skipping "%s"' % title)
-      continue
-    params = foo['params']
-    x_units = DXU_values[params['DXU']]
-    y_vals = foo['data'] * params['CSF']  # CSF == scale factor
-    x_vals = np.linspace(params['FXV'], params['LXV'], len(y_vals))
-
-    pyplot.figure()
-    pyplot.plot(x_vals, y_vals)
-    pyplot.title(title)
-    pyplot.xlabel(x_units)
-    pyplot.ylabel(y_type)
-  pyplot.show()
 
 
 def parse_traj(fh, return_params=False):
@@ -258,19 +204,72 @@ def write_opus(fname, traj, comments):
 
 
 if __name__ == '__main__':
-  from optparse import OptionParser
-  op = OptionParser()
-  op.add_option('--print', action='store_true', dest='_print')
-  op.add_option('--plot', action='store_true')
-  op.add_option('--filter', type=str, default='',
-                help='Only show plots with titles matching this substring.')
-  opts, args = op.parse_args()
-  if len(args) != 1:
-    op.error('Supply exactly one filename argument.')
-  if not (opts._print or opts.plot):
-    op.error('Must supply either --plot or --print.')
-  data = OpusFile.parse_stream(open(args[0], 'rb'))
-  if opts._print:
-    prettyprint_opus(data)
-  if opts.plot:
-    plot_opus(data, opts.filter)
+
+  def main():
+    from argparse import ArgumentParser
+    op = ArgumentParser()
+    op.add_argument('--print', action='store_true', dest='_print')
+    op.add_argument('--plot', action='store_true')
+    op.add_argument('--filter', type=str, default='',
+                    help='Only show plots with titles matching this substring.')
+    op.add_argument('file', type=open, help='OPUS file.')
+    opts = op.parse_args()
+    if not (opts._print or opts.plot):
+      op.error('Must supply either --plot or --print.')
+
+    data = OpusFile.parse_stream(opts.file)
+    if opts._print:
+      prettyprint_opus(data)
+    if opts.plot:
+      plot_opus(data, opts.filter)
+
+  def prettyprint_opus(data):
+    np.set_printoptions(precision=4, suppress=True)
+    print('OPUS file, version', data.Version,
+          '%d/%d blocks' % (data.CurrDirSize, data.MaxDirSize))
+    for label, d in iter_blocks(data):
+      print('[%x:%x]' % (d.DataPtr, d.DataPtr+d.BlockLength*4), label)
+      if d.Block is None:
+        continue
+      if is_ParameterList(d):
+        for p in d.Block[:-1]:  # Don't bother printing the END block.
+          print('   ', p.Name, p.Value)
+      else:
+        foo = np.array(d.Block.value)
+        print('    data:', foo.shape, foo[:6] if foo.ndim > 0 else foo)
+
+  def plot_opus(data, title_pattern=''):
+    from matplotlib import pyplot
+    plot_info = defaultdict(dict)
+    for label, d in iter_blocks(data):
+      if d.Block is None:
+        continue
+      if label.endswith('data status parameters'):
+        key = label[:-23]
+        plot_info[key]['params'] = dict((p.Name, p.Value) for p in d.Block)
+      elif d.BlockType.data != 0 and d.BlockType.extend == 0:
+        plot_info[label]['data'] = np.array(d.Block.value)
+    DXU_values = {
+        'WN': 'Wavenumber (1/cm)', 'MI': 'Micron', 'LGW': 'log Wavenumber',
+        'MIN': 'Minutes', 'PNT': 'Points'
+    }
+    for label, foo in plot_info.items():
+      if 'data' not in foo or 'params' not in foo:
+        continue
+      y_type, title = label.split(' ', 1)
+      if title_pattern not in title:
+        print('Skipping "%s"' % title)
+        continue
+      params = foo['params']
+      x_units = DXU_values[params['DXU']]
+      y_vals = foo['data'] * params['CSF']  # CSF == scale factor
+      x_vals = np.linspace(params['FXV'], params['LXV'], len(y_vals))
+
+      pyplot.figure()
+      pyplot.plot(x_vals, y_vals)
+      pyplot.title(title)
+      pyplot.xlabel(x_units)
+      pyplot.ylabel(y_type)
+    pyplot.show()
+
+  main()
