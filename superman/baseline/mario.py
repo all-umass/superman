@@ -1,5 +1,6 @@
 from __future__ import absolute_import, print_function
 import numpy as np
+import warnings
 from numpy.polynomial.hermite import hermvander
 from six.moves import xrange
 from .common import Baseline
@@ -32,11 +33,12 @@ def mario_baseline(bands, intensities, poly_order=10, max_iters=None,
   # Keep trying to solve until we succeed.
   for order in xrange(poly_order, 0, -1):
     result, P = _mario_helper(bands, s, order, opts, callback)
-    print('With order %d:' % order, result['status'])
+    if verbose:
+      print('With order %d:' % order, result['status'])
     if result['x'] is not None:
       break
   else:
-    print('mario_baseline didnt find a fit at any order')
+    warnings.warn('mario_baseline didnt find a fit at any order')
     return np.zeros_like(s)
   baseline = P.dot(np.array(result['x']).ravel())
   # Flip it back over.

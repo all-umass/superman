@@ -1,5 +1,6 @@
 from __future__ import absolute_import, print_function
 import numpy as np
+import warnings
 from six.moves import xrange
 from .common import WhittakerSmoother, Baseline
 
@@ -37,7 +38,7 @@ def airpls_baseline(intensities, smoothness_param=100, max_iters=10,
     w[0] = np.exp(i*baseline_error.min())
     w[-1] = w[0]
   else:
-    print('airPLS did not converge in', max_iters, 'iterations')
+    warnings.warn('airPLS did not converge in %d iterations' % max_iters)
   return baseline
 
 
