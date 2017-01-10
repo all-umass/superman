@@ -80,7 +80,7 @@ class DatasetView(object):
 
     # remove crop information from the transforms
     trans = dict(self.transformations)
-    del trans['crop']
+    trans['crop'] = ()
     return ds._transform_vector(bands, ints, trans)
 
   def get_metadata(self, meta_key):
