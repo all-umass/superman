@@ -42,8 +42,8 @@ def parse_loose(fh):
 
 def spectrum_shaped(data):
   data = np.atleast_2d(data)
-  if data.shape[1] == 2 and data.shape[0] > 2:
-    return data
+  if data.shape[1] in (2, 3) and data.shape[0] > 2:
+    return data[:,:2]
   if data.shape[0] == 2 and data.shape[1] > 2:
     return data.T
   raise ValueError('Invalid shape for spectrum data: %s' % (data.shape,))
