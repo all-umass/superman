@@ -166,7 +166,7 @@ def _normalize(norm_type, loc=None):
   if norm_type in ('l1', 'l2'):
     return lambda S, w: normalize(S, norm=norm_type, copy=False)
   if norm_type == 'norm3':
-    return lambda S, w: libs_norm3(S, copy=False)
+    return lambda S, w: libs_norm3(S, wavelengths=w, copy=False)
   if norm_type == 'cum':
     return lambda S, w: cumulative_norm(S)
 
@@ -242,7 +242,7 @@ def cumulative_norm(S):
   return S
 
 
-def libs_norm3(shots, copy=True):
+def libs_norm3(shots, wavelengths=None, copy=True):
   shots = np.array(shots, copy=copy, ndmin=2)
   num_chan = shots.shape[1]
   if num_chan == 6143:
@@ -251,6 +251,8 @@ def libs_norm3(shots, copy=True):
     a, b = 2048, 4098
   elif num_chan == 5485:
     a, b = 1884, 3811
+  elif wavelengths is not None:
+    a, b = np.searchsorted(wavelengths, (360, 470))
   else:
     raise ValueError('Invalid # channels for LIBS norm3 method: %d' % num_chan)
   normalize(shots[:, :a], norm='l1', copy=False)
