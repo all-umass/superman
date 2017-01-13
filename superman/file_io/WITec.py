@@ -2,14 +2,14 @@ from __future__ import print_function
 import numpy as np
 from argparse import ArgumentParser
 from construct import (
-    Struct, Magic, Rename, Array, PascalString, ULInt32, SLInt64, Enum, Value,
-    OneOf, If, RepeatUntil, Field, LFloat64, LFloat32, SLInt32, Switch,
-    LazyBound, ULInt8, Anchor, Padding
+    Struct, Const, Array, PascalString, Int32ul, Int64sl, Enum, Computed,
+    OneOf, If, RepeatUntil, Bytes, Float64l, Float32l, Int32sl, Switch,
+    LazyBound, Int8ul, Tell, Padding, this
 )
 from six.moves import xrange
 
 WIPTagType = Enum(
-    ULInt32('type'),
+    Int32ul,
     WIP_TAG_LIST=0,  # list of other tags
     WIP_TAG_EXTENDED=1,  # x86 FPU native type, 10 bytes
     WIP_TAG_DOUBLE=2,
@@ -23,45 +23,44 @@ WIPTagType = Enum(
 )
 
 
-def WIPString(name):
-  return PascalString(name, length_field=ULInt32('length'))
+WIPString = PascalString(lengthfield=Int32ul)
 
 
 WIPTag = Struct(
     'WIPTag',
-    WIPString('name'),
-    WIPTagType,
-    SLInt64('data_start'),
-    SLInt64('data_end'),
-    # Anchor('start'),
-    # OneOf(Value('at_start', lambda ctx: ctx.start == ctx.data_start), [True]),
-    Value('data_size', lambda ctx: ctx.data_end - ctx.data_start),
-    If(lambda ctx: ctx.data_end > ctx.data_start,
-        Switch('data', lambda ctx: ctx.type, dict(
+    'name'/WIPString,
+    'type'/WIPTagType,
+    'data_start'/Int64sl,
+    'data_end'/Int64sl,
+    # 'start'/Tell,
+    # OneOf(Computed(this.start == this.data_start), [True]),
+    'data_size'/Computed(this.data_end - this.data_start),
+    'data'/If(
+        this.data_end > this.data_start,
+        Switch(this.type, dict(
             WIP_TAG_LIST=RepeatUntil(
                 lambda obj, ctx: obj.data_end >= ctx.data_end,
-                LazyBound('', lambda: WIPTag)),
-            WIP_TAG_EXTENDED=Field('', 10),
-            WIP_TAG_DOUBLE=LFloat64(''),
-            WIP_TAG_FLOAT=LFloat32(''),
-            WIP_TAG_INT64=SLInt64(''),
-            WIP_TAG_INT32=Array(lambda ctx: ctx.data_size//4, SLInt32('')),
-            WIP_TAG_UINT32=Array(lambda ctx: ctx.data_size//4, ULInt32('')),
-            WIP_TAG_CHAR=Array(lambda ctx: ctx.data_size, ULInt8('')),
-            WIP_TAG_BOOL=ULInt8(''),
-            WIP_TAG_STRING=WIPString(''),
+                LazyBound(lambda: WIPTag)),
+            WIP_TAG_EXTENDED=Bytes(10),
+            WIP_TAG_DOUBLE=Float64l,
+            WIP_TAG_FLOAT=Float32l,
+            WIP_TAG_INT64=Int64sl,
+            WIP_TAG_INT32=Array(this.data_size//4, Int32sl),
+            WIP_TAG_UINT32=Array(this.data_size//4, Int32ul),
+            WIP_TAG_CHAR=Array(this.data_size, Int8ul),
+            WIP_TAG_BOOL=Int8ul,
+            WIP_TAG_STRING=WIPString,
         ))),
-    Anchor('end'),
+    'end'/Tell,
     # pad to get to data_end
-    Padding(lambda ctx: ctx.data_end - ctx.end),
+    Padding(this.data_end - this.end),
 )
 
 WIPFile = Struct(
-    'WIPFile',
-    Magic('WIT_PR06'),  # alternately, "WIT_PRCT"
-    Rename('root', WIPTag),
+    Const(b'WIT_PR06'),  # alternately, "WIT_PRCT"
+    'root'/WIPTag,
     # Validate the root name
-    OneOf(Value('root_name', lambda ctx: ctx.root.name), ['WITec Project'])
+    OneOf(Computed(this.root.name), ['WITec Project'])
 )
 
 

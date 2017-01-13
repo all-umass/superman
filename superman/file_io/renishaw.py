@@ -1,4 +1,4 @@
-"""Mk4py, aka metakit.
+"""Uses Mk4py, aka metakit.
 Python bindings are native-compiled: http://equi4.com/metakit/python.html
 """
 from __future__ import print_function
@@ -9,9 +9,9 @@ import struct
 import zlib
 from argparse import ArgumentParser
 from construct import (
-    Struct, ULInt64, Array, Magic, LFloat64, SLInt32, ULInt16, Switch, ULInt32,
+    Struct, Int64ul, Array, Const, Float64l, Int32sl, Int16ul, Switch, Int32ul,
     String, Padding, Adapter, Container, GreedyRange, IfThenElse, Peek,
-    Embedded, OnDemand, Const, ExprAdapter
+    Embedded, OnDemand, ExprAdapter, this
 )
 from matplotlib import pyplot as plt
 
@@ -94,13 +94,12 @@ class WXDFile(object):
     return trajs
 
 
-class VBString(Adapter):
-  def __init__(self, name):
+class VBStringAdapter(Adapter):
+  def __init__(self):
     # TODO: replace this with construct.PascalString
-    vbs = Struct(name,
-                 ULInt32('length'),
-                 String('value', lambda ctx: ctx.length-2),
-                 Magic('\x00\x00'))  # There's always an ending null
+    vbs = Struct('length'/Int32ul,
+                 'value'/String(this.length - 2),
+                 Const(b'\x00\x00'))  # There's always an ending null
     Adapter.__init__(self, vbs)
 
   def _decode(self, obj, ctx):
@@ -110,58 +109,53 @@ class VBString(Adapter):
     x = obj.encode('utf16') + '\x00\x00'
     return Container(length=len(x), value=x)
 
+VBString = VBStringAdapter()
 SomeKindOfEnumMaybe = Struct(
-    'SomeKindOfEnumMaybe',
     Padding(16),  # XXX: almost certainly useful somehow
-    ULInt64('')
+    Int64ul
 )
 TaggedData = Struct(
-    'TaggedData',
-    ULInt16('tag'),
-    Switch('value', lambda ctx: ctx.tag, {
-        3: SLInt32(''),
-        5: LFloat64(''),
-        7: ULInt64(''),  # timestamp?
-        8: VBString(''),
+    'tag'/Int16ul,
+    'value'/Switch(this.tag, {
+        3: Int32sl,
+        5: Float64l,
+        7: Int64ul,  # timestamp?
+        8: VBString,
         9: SomeKindOfEnumMaybe,
-        11: Magic('\x00' * 2),  # null?
-        35: Magic('\x00' * 6)  # EOF
+        11: Const(b'\x00' * 2),  # null?
+        35: Const(b'\x00' * 6),  # EOF
     })
 )
 # Specialization for loading float data faster
 TaggedFloat64 = ExprAdapter(
-    Struct('data', Const(ULInt16('tag'), 5), LFloat64('value')),
+    Struct(Const('tag'/Int16ul, 5), 'value'/Float64l),
     encoder=lambda obj, ctx: Container(tag=obj.tag, value=obj.value),
     decoder=lambda obj, ctx: obj.value)
 DataList = Struct(
-    'DataList',
-    ULInt64('size'),
+    'size'/Int64ul,
     OnDemand(Array(lambda ctx: ctx.size, TaggedFloat64)),
-    Magic('\xc0\xff\xee\x01')  # XXX: probably useful
+    Const('\xc0\xff\xee\x01')  # XXX: probably useful
 )
 # XXX: hacks
 bad_strings = ('\xc0\xff\xee\x01\x00\x00', '\x01#Eg\x00\x00')
 Property = Struct(
-    'Property',
-    Peek(String('peek', 6)),
+    'peek'/Peek(String(6)),
     Embedded(IfThenElse(
-        '', lambda ctx: ctx.peek in bad_strings,
+        this.peek in bad_strings,
         Padding(6),
-        Struct('', VBString('label'), TaggedData)))
+        Struct('label'/VBString, 'TaggedData'/TaggedData)))
 )
 Properties = GreedyRange(Property)
 LabeledDataList = Struct(
-    'LabeledDataList',
-    VBString('label'),
+    'label'/VBString,
     Padding(18),
-    Embedded(DataList)
+    'DataList'/Embedded(DataList)
 )
 DataSet = Struct(
-    'DataSet',
-    ULInt64('number'),
+    'number'/Int64ul,
     # XXX: may have more than two. Might use ctx.number to decide?
-    Array(2, LabeledDataList),
-    Properties
+    'LabeledDataList'/Array(2, LabeledDataList),
+    'Properties'/Properties
 )
 
 

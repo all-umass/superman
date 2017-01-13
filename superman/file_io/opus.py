@@ -2,14 +2,15 @@ from __future__ import absolute_import, print_function
 import numpy as np
 from collections import defaultdict
 from construct import (
-    Array, Enum, LFloat32, LFloat64, Magic, OnDemand, Pointer, Container,
-    RepeatUntil, String, Struct, Switch, ULInt16, ULInt32, If
+    Array, Enum, Const, OnDemand, Pointer, Container,
+    RepeatUntil, String, Struct, Switch, If,
+    Float32l, Float64l, Int16ul, Int32ul, this, obj_
 )
 
 from .construct_utils import BitSplitter, FixedSizeCString, FunctionSwitch
 
 
-BlockType = BitSplitter(ULInt32('BlockType'),
+BlockType = BitSplitter(Int32ul,
                         complex=(0, 2), type=(2, 2), param=(4, 6),
                         data=(10, 7), deriv=(17, 2), extend=(19, 3))
 
@@ -48,16 +49,14 @@ def prettyprint_blocktype(bt):
   return ' '.join(res)
 
 Parameter = Struct(
-    'Parameter',
-    FixedSizeCString('Name', lambda ctx: 4),  # 4 bytes, 3 chars + null
-    Enum(ULInt16('Type'), INT32=0, REAL64=1, STRING=2, ENUM=3, SENUM=4),
-    ULInt16('ReservedSpace'),
-    If(  # Only look for a Value if this isn't the END pseudo-parameter.
-        lambda ctx: ctx.Name != 'END',
-        Switch('Value', lambda ctx: ctx.Type, {
-            'INT32': ULInt32(''),
-            'REAL64': LFloat64(''),
-        }, FixedSizeCString('', lambda ctx: ctx.ReservedSpace*2))
+    'Name'/FixedSizeCString(4),  # 4 bytes, 3 chars + null
+    'Type'/Enum(Int16ul, INT32=0, REAL64=1, STRING=2, ENUM=3, SENUM=4),
+    'ReservedSpace'/Int16ul,
+    # Only look for a Value if this isn't the END pseudo-parameter.
+    'Value'/If(
+        this.Name != 'END',
+        Switch(this.Type, {'INT32': Int32ul, 'REAL64': Float64l},
+               default=FixedSizeCString(this.ReservedSpace * 2))
     )
 )
 
@@ -65,18 +64,17 @@ Parameter = Struct(
 def is_ParameterList(block):
   return block.BlockType.param != 0
 
-ParameterList = RepeatUntil(lambda obj, ctx: obj.Name == 'END', Parameter)
-FloatData = Array(lambda ctx: ctx.BlockLength, LFloat32(''))
-StringData = String(None, lambda ctx: ctx.BlockLength*4)
+ParameterList = RepeatUntil(obj_.Name == 'END', Parameter)
+FloatData = Array(this.BlockLength, Float32l)
+StringData = String(this.BlockLength*4)
 
 DirectoryEntry = Struct(
-    'Directory',
-    BlockType,
-    ULInt32('BlockLength'),
-    ULInt32('DataPtr'),
-    Pointer(
-        lambda ctx: ctx.DataPtr,
-        FunctionSwitch('Block', [
+    'BlockType'/BlockType,
+    'BlockLength'/Int32ul,
+    'DataPtr'/Int32ul,
+    'Block'/Pointer(
+        this.DataPtr,
+        FunctionSwitch([
             (is_ParameterList, ParameterList),
             (lambda ctx: ctx.BlockType.extend != 0, OnDemand(StringData)),
             (lambda ctx: ctx.BlockType.data not in (0,13), OnDemand(FloatData))
@@ -86,14 +84,13 @@ DirectoryEntry = Struct(
 
 # The entire file.
 OpusFile = Struct(
-    'OpusFile',
-    Magic('\n\n\xfe\xfe'),  # 0x0a0afefe
-    LFloat64('Version'),
-    ULInt32('FirstDirPtr'),
-    ULInt32('MaxDirSize'),
-    ULInt32('CurrDirSize'),
-    Pointer(lambda ctx: ctx.FirstDirPtr,
-            Array(lambda ctx: ctx.MaxDirSize, DirectoryEntry)))
+    Const(b'\n\n\xfe\xfe'),  # 0x0a0afefe magic
+    'Version'/Float64l,
+    'FirstDirPtr'/Int32ul,
+    'MaxDirSize'/Int32ul,
+    'CurrDirSize'/Int32ul,
+    'Directory'/Pointer(this.FirstDirPtr,
+                        Array(this.MaxDirSize, DirectoryEntry)))
 
 
 def iter_blocks(opus_data):
@@ -121,7 +118,7 @@ def parse_traj(fh, return_params=False):
     if label.endswith('data status parameters'):
       params = dict((p.Name, p.Value) for p in d.Block)
     elif d.BlockType.data != 0 and d.BlockType.extend == 0:
-      y_vals = np.array(d.Block.value)
+      y_vals = np.array(d.Block())
       # Hacky fix for a strange issue where the first/last value is exactly zero
       if y_vals[0] == 0 and y_vals[1] > 1.0:
         y_vals = y_vals[1:]
@@ -181,7 +178,7 @@ def write_opus(fname, traj, comments):
   directory = [
       Container(BlockType=dir_bt, DataPtr=0, BlockLength=0, Block=None),
       Container(BlockType=data_bt, DataPtr=0,
-                BlockLength=ampl.size, Block=ampl),
+                BlockLength=ampl.size, Block=ampl.tolist()),
       Container(BlockType=meta_bt, DataPtr=0,
                 BlockLength=meta_param_size, Block=meta_param),
       Container(BlockType=comment_bt, DataPtr=0,
@@ -199,6 +196,7 @@ def write_opus(fname, traj, comments):
   opus_obj = Container(Version=920622.0, FirstDirPtr=24,
                        MaxDirSize=len(directory), CurrDirSize=len(directory),
                        Directory=directory)
+
   with open(fname, 'wb') as fh:
     OpusFile.build_stream(opus_obj, fh)
 
@@ -235,7 +233,7 @@ if __name__ == '__main__':
         for p in d.Block[:-1]:  # Don't bother printing the END block.
           print('   ', p.Name, p.Value)
       else:
-        foo = np.array(d.Block.value)
+        foo = np.array(d.Block())
         print('    data:', foo.shape, foo[:6] if foo.ndim > 0 else foo)
 
   def plot_opus(data, title_pattern=''):
@@ -248,7 +246,7 @@ if __name__ == '__main__':
         key = label[:-23]
         plot_info[key]['params'] = dict((p.Name, p.Value) for p in d.Block)
       elif d.BlockType.data != 0 and d.BlockType.extend == 0:
-        plot_info[label]['data'] = np.array(d.Block.value)
+        plot_info[label]['data'] = np.array(d.Block())
     DXU_values = {
         'WN': 'Wavenumber (1/cm)', 'MI': 'Micron', 'LGW': 'log Wavenumber',
         'MIN': 'Minutes', 'PNT': 'Points'

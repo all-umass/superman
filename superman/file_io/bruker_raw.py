@@ -4,92 +4,89 @@ Siemens/Bruker Diffrac-AT Raw Format
 '''
 import numpy as np
 from construct import (
-  Padding, Struct, ULInt32, ULInt16, Switch, String, LFloat64, LFloat32, Const,
-  Array, Magic, OnDemand, Rename, Embed, Value
+  Padding, Struct, Switch, String, Array, Const, OnDemand, Embedded, Computed,
+  Int32ul, Int16ul, Float64l, Float32l, this, Check
 )
 from construct_utils import FixedSizeCString
 
 Block_v2 = Struct(
-    'RAW v2 data block',
-    ULInt16('header_len'),
-    ULInt16('num_steps'),
+    'header_len'/Int16ul,
+    'num_steps'/Int16ul,
     Padding(4),
-    LFloat32('time_per_step'),
-    LFloat64('x_step'),
-    LFloat64('x_start'),
+    'time_per_step'/Float32l,
+    'x_step'/Float64l,
+    'x_start'/Float64l,
     Padding(26),
-    ULInt16('temperature'),
-    Padding(lambda ctx: ctx.header_len - 48),
-    OnDemand(Array(lambda ctx: ctx.num_steps, LFloat32('y')))
+    'temperature'/Int16ul,
+    Padding(this.header_len - 48),
+    'y'/OnDemand(Array(this.num_steps, Float32l))
 )
 
 RAW_v2 = Struct(
-    'RAW v2',
-    ULInt32('num_steps'),
+    'num_steps'/Int32ul,
     Padding(162),
-    FixedSizeCString('date_time_measure', 20),
-    FixedSizeCString('anode_material', 2),
-    LFloat32('lambda1'),
-    LFloat32('lambda2'),
-    LFloat32('intensity_ratio'),
+    'date_time_measure'/FixedSizeCString(20),
+    'anode_material'/FixedSizeCString(2),
+    'lambda1'/Float32l,
+    'lambda2'/Float32l,
+    'intensity_ratio'/Float32l,
     Padding(8),
-    LFloat32('sample_runtime'),
+    'sample_runtime'/Float32l,
     Padding(42),
-    Rename('blocks', Array(lambda ctx: ctx.num_steps, Block_v2))
+    'blocks'/Array(this.num_steps, Block_v2)
 )
 
 Block_v101 = Struct(
-    'RAW v1.01 data block',
-    Const(ULInt32('header_len'), 304),
-    ULInt32('num_steps'),
-    LFloat64('start_theta'),
-    LFloat64('start_2theta'),
+    'header_len'/Int32ul,
+    Check(this.header_len == 304),
+    'num_steps'/Int32ul,
+    'start_theta'/Float64l,
+    'start_2theta'/Float64l,
     Padding(76),
-    LFloat32('high_voltage'),
-    LFloat32('amplifier_gain'),
-    LFloat32('discriminator_1_lower_level'),
+    'high_voltage'/Float32l,
+    'amplifier_gain'/Float32l,
+    'discriminator_1_lower_level'/Float32l,
     Padding(64),
-    LFloat64('step_size'),
+    'step_size'/Float64l,
     Padding(8),
-    LFloat32('time_per_step'),
+    'time_per_step'/Float32l,
     Padding(12),
-    LFloat32('rpm'),
+    'rpm'/Float32l,
     Padding(12),
-    ULInt32('generator_voltage'),
-    ULInt32('generator_current'),
+    'generator_voltage'/Int32ul,
+    'generator_current'/Int32ul,
     Padding(8),
-    LFloat64('used_lambda'),
+    'used_lambda'/Float64l,
     Padding(8),
-    ULInt32('supplementary_headers_size'),
-    Padding(lambda ctx: ctx.supplementary_headers_size + 44),
-    OnDemand(Array(lambda ctx: ctx.num_steps, LFloat32('y')))
+    'supplementary_headers_size'/Int32ul,
+    Padding(this.supplementary_headers_size + 44),
+    'y'/OnDemand(Array(this.num_steps, Float32l))
 )
 
 RAW_v101 = Struct(
-    'RAW v1.01',
-    Magic('.01'),
+    Const(b'.01'),
     Padding(1),
     # 1 -> done, 2 -> active, 3 -> aborted, 4 -> interrupted
-    ULInt32('file_status'),
-    ULInt32('num_blocks'),
-    FixedSizeCString('measure_date', 10),
-    FixedSizeCString('measure_time', 10),
-    FixedSizeCString('user', 72),
-    FixedSizeCString('site', 218),
-    FixedSizeCString('sample_id', 60),
-    FixedSizeCString('comment', 160),
+    'file_status'/Int32ul,
+    'num_blocks'/Int32ul,
+    'measure_date'/FixedSizeCString(10),
+    'measure_time'/FixedSizeCString(10),
+    'user'/FixedSizeCString(72),
+    'site'/FixedSizeCString(218),
+    'sample_id'/FixedSizeCString(60),
+    'comment'/FixedSizeCString(160),
     Padding(62),
-    FixedSizeCString('anode_material', 4),
+    'anode_material'/FixedSizeCString(4),
     Padding(4),
-    LFloat64('alpha_average'),
-    LFloat64('alpha1'),
-    LFloat64('alpha2'),
-    LFloat64('beta'),
-    LFloat64('alpha_ratio'),
+    'alpha_average'/Float64l,
+    'alpha1'/Float64l,
+    'alpha2'/Float64l,
+    'beta'/Float64l,
+    'alpha_ratio'/Float64l,
     Padding(8),
-    LFloat32('measurement_time'),
+    'measurement_time'/Float32l,
     Padding(44),
-    Rename('blocks', Array(lambda ctx: ctx.num_blocks, Block_v101))
+    'blocks'/Array(this.num_blocks, Block_v101)
 )
 
 
@@ -98,14 +95,12 @@ def _unsupported_version(ctx):
   raise NotImplementedError('Bruker RAW version %r is not implemented' % v)
 
 RAW = Struct(
-  'Bruker RAW file',
-  Magic('RAW'),
-  String('version', 1),
-  Switch('', lambda ctx: ctx.version, {
-    ' ': Value('', _unsupported_version),
-    '2': Embed(RAW_v2),
-    '1': Embed(RAW_v101)
-  }, default=Value('', _unsupported_version))
+  Const(b'RAW'),
+  'version'/String(1),
+  Embedded(Switch(this.version, {
+    '2': RAW_v2,
+    '1': RAW_v101
+  }, default=Computed(_unsupported_version)))
 )
 
 
@@ -124,5 +119,5 @@ def parse_raw(fh):
     x_start = block.x_start
     x_stop = x_start + n * block.x_step
   x = np.linspace(x_start, x_stop, num=n, endpoint=False)
-  y = np.array(block.y.value, dtype=np.float32)
+  y = np.array(block.y(), dtype=np.float32)
   return np.column_stack((x, y))

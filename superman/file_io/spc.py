@@ -2,9 +2,9 @@ from __future__ import absolute_import, print_function
 import numpy as np
 from datetime import datetime
 from construct import (
-    Anchor, Array, BitStruct, Byte, Embed, FieldError, Flag, If, IfThenElse,
-    LFloat32, LFloat64, OnDemand, Padding, Pointer, SLInt16, SLInt32, String,
-    Struct, Switch, ULInt32, Value
+    Tell, Array, BitStruct, Byte, Embedded, FieldError, Flag, If, IfThenElse,
+    OnDemand, Padding, Pointer, String, Struct, Switch, Computed, this,
+    Float64l, Float32l, Int32sl, Int16sl, Int32ul
 )
 
 from .construct_utils import BitSplitter, FixedSizeCString
@@ -48,19 +48,18 @@ VERSIONS = {
 }
 
 TFlags = BitStruct(
-    'TFlags',
-    Flag('has_xs'),
-    Flag('use_subfile_xs'),
-    Flag('use_catxt_labels'),
-    Flag('ordered_subtimes'),
-    Flag('arbitrary_time'),
-    Flag('multiple_ys'),
-    Flag('enable_experiment'),
-    Flag('short_y')
+    'has_xs'/Flag,
+    'use_subfile_xs'/Flag,
+    'use_catxt_labels'/Flag,
+    'ordered_subtimes'/Flag,
+    'arbitrary_time'/Flag,
+    'multiple_ys'/Flag,
+    'enable_experiment'/Flag,
+    'short_y'/Flag
 )
 
 DateVersionK = BitSplitter(
-    ULInt32('Date'),
+    Int32ul,
     minute=(0, 6),
     hour=(6, 5),
     day=(11, 5),
@@ -69,68 +68,65 @@ DateVersionK = BitSplitter(
 )
 
 DateVersionM = Struct(
-    'Date',
-    SLInt16('year1900'),
-    # XXX: guessing that we count years since 1900
-    Value('year', lambda ctx: ctx.year1900 + 1900),
-    Byte('month'),
-    Byte('day'),
-    Byte('hour'),
-    Byte('minute')
+    'year1900'/Int16sl,  # XXX: guessing that we count years since 1900
+    'year'/Computed(this.year1900 + 1900),
+    'month'/Byte,
+    'day'/Byte,
+    'hour'/Byte,
+    'minute'/Byte
 )
 
 HeaderVersionK = Struct(
-    '',
-    Byte('experiment_type'),
-    Byte('exp'),
-    SLInt32('npts'),
-    LFloat64('first'),
-    LFloat64('last'),
-    SLInt32('nsub'),
-    Byte('xtype'),
-    Byte('ytype'),
-    Byte('ztype'),
-    Byte('post'),
-    DateVersionK,
+    'experiment_type'/Byte,
+    'exp'/Byte,
+    'npts'/Int32sl,
+    'first'/Float64l,
+    'last'/Float64l,
+    'nsub'/Int32sl,
+    'xtype'/Byte,
+    'ytype'/Byte,
+    'ztype'/Byte,
+    'post'/Byte,
+    'date'/DateVersionK,
     Padding(9),
-    FixedSizeCString('source', 9),
-    SLInt16('peakpt'),
+    'source'/FixedSizeCString(9),
+    'peakpt'/Int16sl,
     Padding(32),
-    FixedSizeCString('comment', 130),
-    FixedSizeCString('catxt', 30),
-    SLInt32('log_offset'),
-    SLInt32('mods'),
-    Byte('procs'),
-    Byte('level'),
-    SLInt16('sampin'),
-    LFloat32('factor'),
-    FixedSizeCString('method', 48),
-    LFloat32('zinc'),
-    SLInt32('wplanes'),
-    LFloat32('winc'),
-    Byte('wtype'),
+    'comment'/FixedSizeCString(130),
+    FixedSizeCString(130),
+    'catxt'/FixedSizeCString(30),
+    'log_offset'/Int32sl,
+    'mods'/Int32sl,
+    'procs'/Byte,
+    'level'/Byte,
+    'sampin'/Int16sl,
+    'factor'/Float32l,
+    'method'/FixedSizeCString(48),
+    'zinc'/Float32l,
+    'wplanes'/Int32sl,
+    'winc'/Float32l,
+    'wtype'/Byte,
     Padding(187)
 )
 
 HeaderVersionM = Struct(
-    '',
-    SLInt16('exp'),
-    LFloat32('npts'),
-    LFloat32('first'),
-    LFloat32('last'),
-    Byte('xtype'),
-    Byte('ytype'),
-    DateVersionM,
+    'exp'/Int16sl,
+    'npts'/Float32l,
+    'first'/Float32l,
+    'last'/Float32l,
+    'xtype'/Byte,
+    'ytype'/Byte,
+    'date'/DateVersionM,
     Padding(8),  # res
-    SLInt16('peakpt'),
-    SLInt16('nscans'),
+    'peakpt'/Int16sl,
+    'nscans'/Int16sl,
     Padding(28),  # spare
-    FixedSizeCString('comment', 130),
-    FixedSizeCString('catxt', 30),
+    'comment'/FixedSizeCString(130),
+    'catxt'/FixedSizeCString(30),
     # only one subfile supported by this version
-    Value('nsub', lambda ctx: 1),
+    'nsub'/Computed(1),
     # log data is not supported by this version
-    Value('log_offset', lambda ctx: 0)
+    'log_offset'/Computed(0)
 )
 
 
@@ -138,63 +134,58 @@ def _wrong_version_error(ctx):
   raise NotImplementedError('SPC version %s is not implemented' % ctx.version)
 
 Header = Struct(
-    'Header',
-    TFlags,
-    String('version', 1),
-    Switch('', lambda ctx: ctx.version, {
-        'K': Embed(HeaderVersionK),
-        'L': Value('', _wrong_version_error),
-        'M': Embed(HeaderVersionM),
-    }, default=Value('', _wrong_version_error))
+    'TFlags'/TFlags,
+    'version'/String(1),
+    Embedded(Switch(this.version, {
+        'K': HeaderVersionK,
+        'L': Computed(_wrong_version_error),
+        'M': HeaderVersionM,
+    }, default=Computed(_wrong_version_error)))
 )
 
 Subfile = Struct(
-    'Subfile',
-    Byte('flags'),
-    Byte('exp'),
-    SLInt16('index'),
-    LFloat32('time'),
-    LFloat32('next'),
-    LFloat32('nois'),
-    SLInt32('npts'),
-    SLInt32('scan'),
-    LFloat32('wlevel'),
+    'flags'/Byte,
+    'exp'/Byte,
+    'index'/Int16sl,
+    'time'/Float32l,
+    'next'/Float32l,
+    'nois'/Float32l,
+    'npts'/Int32sl,
+    'scan'/Int32sl,
+    'wlevel'/Float32l,
     Padding(4),
-    Value('float_y', lambda ctx: ctx.exp == 128),
-    Value('num_pts',
-          lambda ctx: ctx.npts if ctx.npts > 0 else ctx._.Header.npts),
-    Value('exponent',
-          lambda ctx: ctx.exp if 0 < ctx.exp < 128 else ctx._.Header.exp),
-    If(lambda ctx: ctx._.Header.TFlags.use_subfile_xs,
-       OnDemand(Array(lambda ctx: ctx.num_pts, SLInt32('raw_x')))),
-    IfThenElse('raw_y',
-               lambda ctx: ctx.float_y,
-               OnDemand(Array(lambda ctx: ctx.num_pts, LFloat32(''))),
-               OnDemand(Array(lambda ctx: ctx.num_pts, SLInt32(''))))
+    'float_y'/Computed(this.exp == 128),
+    'num_pts'/Computed(
+        lambda ctx: ctx.npts if ctx.npts > 0 else ctx._.Header.npts),
+    'exponent'/Computed(
+        lambda ctx: ctx.exp if 0 < ctx.exp < 128 else ctx._.Header.exp),
+    'raw_x'/If(this._.Header.TFlags.use_subfile_xs,
+               OnDemand(Array(this.num_pts, Int32sl))),
+    'raw_y'/IfThenElse(this.float_y,
+                       OnDemand(Array(this.num_pts, Float32l)),
+                       OnDemand(Array(this.num_pts, Int32sl)))
 )
 
 LogData = Struct(
-    'LogData',
-    Anchor('log_start'),
-    SLInt32('sizd'),
-    SLInt32('sizm'),
-    SLInt32('text_offset'),
-    SLInt32('bins'),
-    SLInt32('dsks'),
+    'log_start'/Tell,
+    'sizd'/Int32sl,
+    'sizm'/Int32sl,
+    'text_offset'/Int32sl,
+    'bins'/Int32sl,
+    'dsks'/Int32sl,
     Padding(44),
-    Pointer(lambda ctx: ctx.log_start + ctx.text_offset,
-            OnDemand(String('content', lambda ctx: ctx.sizd)))
+    'content'/Pointer(this.log_start + this.text_offset,
+                      OnDemand(String(this.sizd)))
 )
 
 # The entire file.
 SPCFile = Struct(
-    'SPCFile',
-    Header,
-    If(lambda ctx: ctx.Header.TFlags.has_xs,
-       OnDemand(Array(lambda ctx: ctx.Header.npts, LFloat32('xvals')))),
-    Array(lambda ctx: ctx.Header.nsub, Subfile),
-    If(lambda ctx: ctx.Header.log_offset != 0,
-       Pointer(lambda ctx: ctx.Header.log_offset, LogData))
+    'Header'/Header,
+    'xvals'/If(this.Header.TFlags.has_xs,
+               OnDemand(Array(this.Header.npts, Float32l))),
+    'Subfile'/Array(this.Header.nsub, Subfile),
+    'LogData'/If(this.Header.log_offset != 0,
+                 Pointer(this.Header.log_offset, LogData))
 )
 
 
@@ -217,7 +208,7 @@ def prettyprint(data):
     print('W axis:', X_AXIS_LABELS[h.wtype])
   if data.xvals is not None:
     assert h.TFlags.has_xs
-    print('X:', np.array(data.xvals.value))
+    print('X:', np.array(data.xvals()))
   else:
     print('X: linspace(%g, %g, %d)' % (h.first, h.last, h.npts))
   print('%d subfiles' % len(data.Subfile))
@@ -226,7 +217,7 @@ def prettyprint(data):
   if data.LogData is not None:
     print('LogData:')
     try:
-      print(data.LogData.content.value)
+      print(data.LogData.content())
     except FieldError as e:
       print('    Error reading log:', e)
 
@@ -237,20 +228,20 @@ def _convert_arrays(data):
   h = data.Header
   if data.xvals is not None:
     assert h.TFlags.has_xs
-    x_vals = np.array(data.xvals.value)
+    x_vals = np.array(data.xvals())
   else:
     x_vals = np.linspace(h.first, h.last, int(h.npts))
   for sub in data.Subfile:
     if sub.raw_x is None:
       x = x_vals
     else:
-      x = np.array(sub.raw_x.value, dtype=float) * 2**(sub.exponent-32)
+      x = np.array(sub.raw_x(), dtype=float) * 2**(sub.exponent-32)
 
     if sub.float_y:
       # If it's floating point y data, we're done.
-      y = np.array(sub.raw_y.value, dtype=float)
+      y = np.array(sub.raw_y(), dtype=float)
     else:
-      yraw = np.array(sub.raw_y.value, dtype=np.int32)
+      yraw = np.array(sub.raw_y(), dtype=np.int32)
       if h.version == 'M':
         # old version needs different raw_y handling
         # TODO: fix this mess, if possible

@@ -1,4 +1,4 @@
-from construct import Adapter, Container, IfThenElse, Pass, Rename, String
+from construct import Adapter, Container, IfThenElse, Pass, String
 
 
 class BitSplitter(Adapter):
@@ -24,22 +24,22 @@ class BitSplitter(Adapter):
 
 class FixedSizeCString(Adapter):
   '''Marries a C-style null-terminated string with a fixed-length field.'''
-  def __init__(self, name, size_fn):
-    Adapter.__init__(self, String(name, size_fn))
+  def __init__(self, size_fn):
+    Adapter.__init__(self, String(size_fn))
 
   def _decode(self, obj, ctx):
     return obj.split('\0',1)[0]
 
   def _encode(self, obj, ctx):
-    size = self._sizeof(ctx)
+    size = self._sizeof(ctx, None)
     return obj.ljust(size, '\0')[:size]
 
 
-def FunctionSwitch(name, cond_pairs, default=Pass):
+def FunctionSwitch(cond_pairs, default=Pass):
   '''Function-based switch statement.
   Evaluates (test, subcon) pairs in order,
   taking whichever test() evaluates true first.'''
   res = default
   for test_fn, subcon in reversed(cond_pairs):
-    res = IfThenElse(None, test_fn, subcon, res)
-  return Rename(name, res)
+    res = IfThenElse(test_fn, subcon, res)
+  return res

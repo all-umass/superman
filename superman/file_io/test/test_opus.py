@@ -13,7 +13,7 @@ FIXTURE_PATH = os.path.dirname(__file__)
 class OpusTests(unittest.TestCase):
   def test_actual_data(self):
     fname = os.path.join(FIXTURE_PATH, 'actual.0')
-    x = parse_spectrum(fname)
+    x = parse_spectrum(fname, filetype='opus')
     self.assertEqual(x.shape, (1452, 2))
     assert_array_almost_equal(x.sum(axis=0), [2541000, 794769.13498])
 

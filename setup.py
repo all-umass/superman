@@ -29,7 +29,7 @@ setup_kwargs = dict(
         'scipy',
         'scikit-learn >= 0.15',
         'matplotlib >= 1.3.1',
-        'construct >= 2.5.2',
+        'construct >= 2.8',
         'Cython >= 0.20',
         'six >= 1.10.0',
     ],
