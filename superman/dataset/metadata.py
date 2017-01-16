@@ -3,7 +3,7 @@ import operator
 
 __all__ = [
     'NumericMetadata', 'BooleanMetadata', 'LookupMetadata', 'TagMetadata',
-    'CompositionMetadata', 'PrimaryKeyMetadata', 'is_metadata'
+    'DateMetadata', 'CompositionMetadata', 'PrimaryKeyMetadata', 'is_metadata'
 ]
 
 
@@ -103,6 +103,19 @@ class NumericMetadata(_RepeatedMetadata):
     tlb, tub = self.true_bounds
     eps = 0.1 * self.step
     if lb - tlb < eps and tub - ub < eps:
+      return True
+    return (self.arr >= lb) & (self.arr <= ub)
+
+
+class DateMetadata(_RepeatedMetadata):
+  def __init__(self, arr, display_name=None, repeats=1):
+    _RepeatedMetadata.__init__(self, arr, np.datetime64, display_name, repeats)
+    self.bounds = (self.arr.min(), self.arr.max())
+
+  def _filter(self, bounds):
+    lb, ub = np.array(bounds, dtype=np.datetime64)
+    # Check for the trivial case: all within bounds
+    if lb <= self.bounds[0] and ub >= self.bounds[1]:
       return True
     return (self.arr >= lb) & (self.arr <= ub)
 
