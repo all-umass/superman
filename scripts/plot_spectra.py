@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from __future__ import print_function
 from argparse import ArgumentParser
 from os.path import basename
 from matplotlib import pyplot
@@ -21,6 +22,7 @@ args = ap.parse_args()
 
 fig, ax = pyplot.subplots(figsize=(12,6))
 for f in args.file:
+  print('Parsing', f)
   bands, intensities = parse_spectrum(f, filetype=args.type).T
   if args.baseline != 'none':
     bl_alg = BL_CLASSES[args.baseline]()
