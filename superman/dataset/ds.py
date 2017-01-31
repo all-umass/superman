@@ -167,6 +167,11 @@ class TrajDataset(Dataset):
       if m.size() != n:
         raise ValueError('Mismatching size for %s' % m.display_name(k))
 
+  def clear_data(self):
+    self.pkey = None
+    self.metadata = {}
+    self.traj = []
+
   def num_spectra(self):
     return len(self.pkey.index)
 
@@ -203,6 +208,12 @@ class VectorDataset(Dataset):
     for k, m in self.metadata.items():
       if m.size() != n:
         raise ValueError('Mismatching size for %s' % m.display_name(k))
+
+  def clear_data(self):
+    self.pkey = None
+    self.metadata = {}
+    self.bands = None
+    self.intensities = None
 
   def num_spectra(self):
     return len(self.intensities)
