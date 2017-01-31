@@ -1,4 +1,4 @@
-from __future__ import absolute_import
+from __future__ import absolute_import, division
 import numpy as np
 from scipy.ndimage.morphology import binary_erosion
 from scipy.signal import convolve
@@ -12,10 +12,12 @@ def dietrich_baseline(bands, intensities, half_window=16, num_erosions=10):
   http://www.sciencedirect.com/science/article/pii/002223649190402F
   http://www.inmr.net/articles/AutomaticBaseline.html
   '''
-  # Step 1: moving-window smoothing
-  w = half_window*2+1
-  window = np.ones(w) / float(w)
   Y = intensities.copy()
+  half_window = np.clip(half_window, 1, Y.shape[-1]//2)
+
+  # Step 1: moving-window smoothing
+  window_len = 2*half_window + 1
+  window = np.full(window_len, 1./window_len)
   if Y.ndim == 2:
     window = window[None]
   Y[...,half_window:-half_window] = convolve(Y, window, mode='valid')
