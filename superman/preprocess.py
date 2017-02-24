@@ -78,7 +78,7 @@ def _make_pp(pp_string):
     return _PP_MEMO[pp_string]
 
   # populate the preprocessing function pipeline
-  pipeline = [_start_pipeline]
+  pipeline = []
   if pp_string:
     for step in pp_string.split(','):
       parts = step.split(':')
@@ -92,14 +92,6 @@ def _make_pp(pp_string):
 
   _PP_MEMO[pp_string] = _fn
   return _fn
-
-
-def _start_pipeline(S, w):
-  if scipy.sparse.issparse(S):
-    S.data = np.maximum(S.data, 1e-10)
-  else:
-    np.maximum(S, 1e-10, out=S)
-  return S
 
 
 def _polysquash(a, b):
@@ -216,9 +208,7 @@ def _smooth(window, order):
   def fn(S, w):
     if scipy.sparse.issparse(S):
       S = S.toarray()
-    S = scipy.signal.savgol_filter(S, window, order, deriv=0)
-    # get rid of any non-positives created by the smoothing
-    return np.maximum(S, 1e-10)
+    return scipy.signal.savgol_filter(S, window, order, deriv=0)
   return fn
 
 # Lookup table of pp-string name -> pipeline function maker
