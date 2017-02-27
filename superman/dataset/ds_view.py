@@ -95,7 +95,8 @@ class DatasetView(object):
     if isinstance(self.mask, np.ndarray) and self.mask.dtype is bool:
       idx, = np.where(self.mask)
     else:
-      idx = np.arange(len(self.mask))[self.mask]
+      idx = np.array(self.mask, dtype=int, copy=False)
+    
     return ['Spectrum %d' % i for i in idx]
 
   def compute_line(self, bounds):
