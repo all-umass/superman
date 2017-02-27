@@ -28,10 +28,10 @@ class DatasetView(object):
     if hasattr(self.ds, 'intensities'):
       traj = self.ds.get_trajectories_by_index(self.mask, self.transformations)
       if return_keys:
-        return traj, self.ds.pkey.index2key(self.mask)
+        return traj, self.get_primary_keys()
       return traj
 
-    keys = self.ds.pkey.index2key(self.mask)
+    keys = self.get_primary_keys()
     traj = self.ds.get_trajectories(keys, self.transformations)
     if return_keys:
       return traj, keys
@@ -49,7 +49,7 @@ class DatasetView(object):
       raise ValueError('Cannot create vector data from non-resampled trajs.')
 
     # find the min and max x values over all trajs
-    keys = ds.pkey.index2key(self.mask)
+    keys = self.get_primary_keys()
     xmin = float('inf')
     xmax = float('-inf')
     for key in keys:
@@ -115,7 +115,7 @@ class DatasetView(object):
         line /= ints[:, indices[2]:indices[3]].max(axis=1)
       return line
 
-    keys = self.ds.pkey.index2key(self.mask)
+    keys = self.get_primary_keys()
     traj = self.ds.get_trajectories(keys, self.transformations)
     line = np.zeros(len(traj))
     for i, t in enumerate(traj):
@@ -133,8 +133,6 @@ class DatasetView(object):
                             metric='combo:0', num_procs=5, min_window=0,
                             score_pct=1, method='sub'):
     # neurotic error checking
-    if self.ds.pkey is None:
-      raise ValueError('%s has no primary key, cannot search.' % self.ds)
     if not (0 < num_endmembers < 10):
       raise ValueError('Invalid number of mixture components: %d' %
                        num_endmembers)
