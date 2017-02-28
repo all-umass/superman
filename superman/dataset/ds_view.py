@@ -92,11 +92,10 @@ class DatasetView(object):
     if self.ds.pkey is not None:
       return self.ds.pkey.index2key(self.mask)
     # create fake pkeys based on the mask
-    if isinstance(self.mask, np.ndarray) and self.mask.dtype is bool:
+    if isinstance(self.mask, np.ndarray) and self.mask.dtype.name == 'bool':
       idx, = np.where(self.mask)
     else:
       idx = np.array(self.mask, dtype=int, copy=False)
-    
     return ['Spectrum %d' % i for i in idx]
 
   def compute_line(self, bounds):
