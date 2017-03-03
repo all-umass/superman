@@ -173,9 +173,15 @@ class LookupMetadata(_BaseMetadata):
     else:
       self.uniques = np.asarray(arr)
       self.labels = np.asarray(labels)
+    # coerce all values to unicode
+    if self.uniques.dtype.char not in 'US':
+      self.uniques = self.uniques.astype('S')
+    if self.uniques.dtype.char == 'S':
+      self.uniques = np.char.decode(self.uniques, 'utf8')
 
   def filter(self, values):
     if values:
+      values = np.char.decode(values, 'utf8')
       val_labels, = np.where(np.in1d(self.uniques, values, assume_unique=True))
       return np.in1d(self.labels, val_labels)
     # if no values are provided, accept all of them
