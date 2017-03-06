@@ -64,8 +64,8 @@ def parse_asc(fh):
   mask = (stdv >= 0) & (intensities > -1e3)  # exclude bogus negative values
   bands = bands[mask]
   intensities = intensities[mask]
-  # convert microns to wavenumbers, reversing the order to keep it ascending
-  bands = 10000./bands[::-1]
+  # convert microns to nanometers
+  bands *= 1000
   return np.column_stack((bands, intensities))
 
 
