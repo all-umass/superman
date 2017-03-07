@@ -55,18 +55,17 @@ def parse_asc(fh):
     if line.startswith('------'):
       break
   # Skip two lines of header (XXX)
-  next(fh)
-  next(fh)
+  next(fh)  # title
+  next(fh)  # history
   data = np.loadtxt(fh)
+  # 3 columns: wave, ints, stdv
   if not data.size or data.ndim != 2 or data.shape[1] != 3:
     raise ValueError('Invalid file for USGS ASC format')
-  bands,intensities,stdv = data.T
-  mask = (stdv >= 0) & (intensities > -1e3)  # exclude bogus negative values
-  bands = bands[mask]
-  intensities = intensities[mask]
+  # exclude missing values, reported as large negatives
+  data = data[data.min(axis=1) > -1e10]
   # convert microns to nanometers
-  bands *= 1000
-  return np.column_stack((bands, intensities))
+  data[:,0] *= 1000
+  return data[:,:2]
 
 
 def parse_bwspec(fh):
