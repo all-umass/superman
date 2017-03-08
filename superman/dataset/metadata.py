@@ -226,8 +226,13 @@ class CompositionMetadata(_BaseMetadata):
 class PrimaryKeyMetadata(_BaseMetadata):
   def __init__(self, arr):
     _BaseMetadata.__init__(self, 'Primary Key')
-    # Coerce keys to a numpy array, to prevent HDF5 issues
+    # Coerce keys to a unicode numpy array
     self.keys = np.array(arr)
+    if self.keys.dtype.char not in 'US':
+      self.keys = self.keys.astype('S')
+    if self.keys.dtype.char == 'S':
+      self.keys = np.char.decode(self.keys, 'utf8')
+    # Set up the key -> index mapping
     self.index = {key:idx for idx,key in enumerate(self.keys)}
     assert len(self.index) == len(self.keys), 'Primary key array not unique'
 
