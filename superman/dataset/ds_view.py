@@ -17,6 +17,13 @@ class DatasetView(object):
                                 flip=flip, crop=crop, nan_gap=nan_gap,
                                 chan_mask=chan_mask)
 
+  def num_spectra(self):
+    if hasattr(self.mask, 'dtype') and self.mask.dtype.name == 'bool':
+      return np.count_nonzero(self.mask)
+    if self.mask is Ellipsis:
+      return self.ds.num_spectra()
+    return len(self.mask)
+
   def __str__(self):
     return '<DatasetView of "%s": %r>' % (self.ds, self.transformations)
 
@@ -132,34 +139,41 @@ class DatasetView(object):
   def whole_spectrum_search(self, query, num_endmembers=1, num_results=10,
                             metric='combo:0', num_procs=5, min_window=0,
                             score_pct=1, method='sub'):
-    # neurotic error checking
-    if not (0 < num_endmembers < 10):
-      raise ValueError('Invalid number of mixture components: %d' %
-                       num_endmembers)
-    if not (0 <= min_window <= 1000):
-      raise ValueError('Invalid min window size: %d' % min_window)
-    if not (0 < score_pct < 100):
-      raise ValueError('Invalid score percentile threshold: %d' % score_pct)
-    if method not in ('add', 'sub'):
-      raise ValueError('Invalid query modification method: %r' % method)
-    if query[0,0] > query[1,0]:
-      raise ValueError('Query spectrum must have increasing bands')
-    if abs(1 - query[:,1].max()) > 0.001:
-      raise ValueError('Query spectrum must be max-normalized')
-
-    # prepare the query
-    query = query.astype(np.float32, order='C', copy=True)
+    query, num_sub_results = _prep_wsm(query, num_endmembers, num_results,
+                                       min_window, score_pct, method)
 
     # prepare the search library
     library, names = self.get_trajectories(return_keys=True)
     library = [t.astype(np.float32, order='C') for t in library]
 
     # run the search
-    num_sub_results = int(np.ceil(num_results ** (1./num_endmembers)))
     res = _cs_helper(query, library, names, num_endmembers, num_sub_results,
                      metric, num_procs, min_window, score_pct, method)
     top_sim, top_names = zip(*sorted(res, reverse=True)[:num_results])
     return top_names, top_sim
+
+
+def _prep_wsm(query, num_endmembers, num_results, min_window, score_pct,
+              method):
+  # neurotic error checking
+  if not (0 < num_endmembers < 10):
+    raise ValueError('Invalid number of mixture components: %d' %
+                     num_endmembers)
+  if not (0 <= min_window <= 1000):
+    raise ValueError('Invalid min window size: %d' % min_window)
+  if not (0 < score_pct < 100):
+    raise ValueError('Invalid score percentile threshold: %d' % score_pct)
+  if method not in ('add', 'sub'):
+    raise ValueError('Invalid query modification method: %r' % method)
+  if query[0,0] > query[1,0]:
+    raise ValueError('Query spectrum must have increasing bands')
+  if abs(1 - query[:,1].max()) > 0.001:
+    raise ValueError('Query spectrum must be max-normalized')
+
+  # prepare for matching
+  query = query.astype(np.float32, order='C', copy=True)
+  num_sub_results = int(np.ceil(num_results ** (1./num_endmembers)))
+  return query, num_sub_results
 
 
 def _cs_helper(query, library, names, num_endmembers, num_results, metric,
@@ -219,3 +233,103 @@ def _add_spectrum(a, b):
     bands = np.concatenate((bands, b[idx:,0]))
     ints = np.concatenate((ints, b[idx:,1]))
   return np.column_stack((bands, ints)).astype(np.float32, order='C')
+
+
+class MultiDatasetView(object):
+  def __init__(self, ds_views):
+    self.ds_views = ds_views
+    self.num_views = len(ds_views)
+    self.num_datasets = len(set(dv.ds for dv in ds_views))
+    self._num_spectra = None
+    kinds = set(dv.ds.kind for dv in ds_views)
+    if len(kinds) != 1:
+      raise ValueError('Cannot use MultiDatasetView with >1 kind of dataset.')
+    self.ds_kind, = kinds
+
+  def num_spectra(self):
+    if self._num_spectra is None:
+      self._num_spectra = sum(dv.num_spectra() for dv in self.ds_views)
+    return self._num_spectra
+
+  def split_across_views(self, arr):
+    assert arr.shape[0] == self.num_spectra()
+    splits = np.cumsum([dv.num_spectra() for dv in self.ds_views[:-1]])
+    return np.split(arr, splits)
+
+  def dataset_name_metadata(self):
+    ds_names, counts = [], []
+    for dv in self.ds_views:
+      ds_names.append(dv.ds.name)
+      counts.append(dv.num_spectra())
+    return np.repeat(ds_names, counts)
+
+  def get_primary_keys(self):
+    if self.num_datasets == 1:
+      return np.concatenate([dv.get_primary_keys() for dv in self.ds_views])
+    # prepend the dataset name (but not kind) to each pkey
+    dv_pkeys = []
+    for dv in self.ds_views:
+      dv_name = dv.ds.name
+      for k in dv.get_primary_keys():
+        dv_pkeys.append('%s: %s' % (dv_name, k))
+    return np.array(dv_pkeys, dtype=bytes)
+
+  def get_metadata(self, meta_key):
+    data, label = [], None
+    for dv in self.ds_views:
+      x, lbl = dv.get_metadata(meta_key)
+      data.append(x)
+      if label is not None and lbl != label:
+        raise ValueError('Mismatching metadata labels: %r != %r' % (label, lbl))
+    return np.concatenate(data), label
+
+  def get_trajectories(self, return_keys=False, avoid_nan_gap=False):
+    trajs = []
+    for dv in self.ds_views:
+      if avoid_nan_gap:
+        nan_gap = dv.transformations.get('nan_gap', None)
+        dv.transformations['nan_gap'] = None
+        trajs.extend(dv.get_trajectories())
+        dv.transformations['nan_gap'] = nan_gap
+      else:
+        trajs.extend(dv.get_trajectories())
+    if return_keys:
+      return trajs, self.get_primary_keys()
+    return trajs
+
+  def get_vector_data(self):
+    wave, X = None, []
+    for dv in self.ds_views:
+      w, x = dv.get_vector_data()
+      if wave is None:
+        wave = w
+      else:
+        if wave.shape != w.shape or not np.allclose(wave, w):
+          raise ValueError("Mismatching wavelength data in %s." % dv.ds)
+      X.append(x)
+    return wave, np.vstack(X)
+
+  def x_axis_units(self):
+    labels = set(dv.ds.x_axis_units() for dv in self.ds_views)
+    if len(labels) != 1:
+      raise ValueError('MultiDatasetView has >1 x-axis unit: %s' % labels)
+    return tuple(labels)[0]
+
+  def compute_line(self, bounds):
+    return np.concatenate([dv.compute_line(bounds) for dv in self.ds_views])
+
+  def whole_spectrum_search(self, query, num_endmembers=1, num_results=10,
+                            metric='combo:0', num_procs=5, min_window=0,
+                            score_pct=1, method='sub'):
+    query, num_sub_results = _prep_wsm(query, num_endmembers, num_results,
+                                       min_window, score_pct, method)
+
+    # prepare the search library
+    library, names = self.get_trajectories(return_keys=True, avoid_nan_gap=True)
+    library = [t.astype(np.float32, order='C') for t in library]
+
+    # run the search
+    res = _cs_helper(query, library, names, num_endmembers, num_sub_results,
+                     metric, num_procs, min_window, score_pct, method)
+    top_sim, top_names = zip(*sorted(res, reverse=True)[:num_results])
+    return top_names, top_sim
