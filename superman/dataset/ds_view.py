@@ -281,6 +281,7 @@ class MultiDatasetView(object):
       data.append(x)
       if label is not None and lbl != label:
         raise ValueError('Mismatching metadata labels: %r != %r' % (label, lbl))
+      label = lbl
     return np.concatenate(data), label
 
   def get_trajectories(self, return_keys=False, avoid_nan_gap=False):
