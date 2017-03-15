@@ -32,11 +32,11 @@ except ImportError:
 
 def parse_loose(fh):
   try:
-    data = np.loadtxt(fh, dtype=np.float32)
+    data = np.loadtxt(fh, dtype=np.float32, usecols=(0,1))
   except ValueError:
     # default parse failed, try parsing as CSV
     fh.seek(0)
-    data = np.loadtxt(fh, dtype=np.float32, delimiter=',')
+    data = np.loadtxt(fh, dtype=np.float32, delimiter=',', usecols=(0,1))
   return spectrum_shaped(data)
 
 
