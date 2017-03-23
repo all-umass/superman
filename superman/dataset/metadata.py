@@ -179,12 +179,18 @@ class LookupMetadata(_BaseMetadata):
     if self.uniques.dtype.char == 'S':
       self.uniques = np.char.decode(self.uniques, 'utf8')
 
-  def filter(self, values):
+  def filter(self, filt_dict):
+    values = filt_dict['select']
     if values:
       values = np.char.decode(values, 'utf8')
       val_labels, = np.where(np.in1d(self.uniques, values, assume_unique=True))
       return np.in1d(self.labels, val_labels)
-    # if no values are provided, accept all of them
+    # if no values are provided, try searching
+    query = filt_dict['search']
+    if query:
+      # TODO: implement text search
+      return True
+    # if no values or query, accept everything
     return True
 
   def get_array(self, mask=Ellipsis):
@@ -242,13 +248,21 @@ class PrimaryKeyMetadata(_BaseMetadata):
   def index2key(self, idx):
     return self.keys[idx]
 
-  def filter(self, keys):
-    if not keys:
+  def filter(self, filt_dict):
+    keys = filt_dict['select']
+    if keys:
+      keys = np.char.decode(keys, 'utf8')
+      inds = [self.index[k] for k in keys]
+      mask = np.zeros_like(self.keys, dtype=bool)
+      mask[inds] = True
+      return mask
+    # if no keys are provided, try searching
+    query = filt_dict['search']
+    if query:
+      # TODO: implement text search
       return True
-    inds = [self.index[k] for k in keys]
-    mask = np.zeros_like(self.keys, dtype=bool)
-    mask[inds] = True
-    return mask
+    # if no keys or query, accept everything
+    return True
 
   def size(self):
     return self.keys.shape[0]
