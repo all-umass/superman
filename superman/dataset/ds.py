@@ -3,8 +3,10 @@ import numpy as np
 
 from ..preprocess import preprocess, crop_resample
 from ..utils import ALAMOS_MASK
-from .metadata import is_metadata, PrimaryKeyMetadata
 from .ds_view import DatasetView
+from ._search import parse_query
+from .metadata import (
+    is_metadata, PrimaryKeyMetadata, LookupMetadata, TagMetadata)
 
 
 class Dataset(object):
@@ -49,6 +51,29 @@ class Dataset(object):
 
   def __str__(self):
     return '%s [%s]' % (self.name, self.kind)
+
+  def search_metadata(self, query_str, full_text=False, case_sensitive=False):
+    query_fn = parse_query(query_str, case_sensitive=case_sensitive)
+    if query_fn is None:
+      return []
+
+    if not full_text:
+      names = [m.display_name(key) for key, m in self.metadata.items()]
+      return list(filter(query_fn, names))
+
+    texts = []
+    if self.pkey is not None and any(query_fn(k) for k in self.pkey.keys):
+      texts.append('Primary Key')
+
+    for key, meta in self.metadata.items():
+      res = False
+      if isinstance(meta, LookupMetadata):
+        res = any(query_fn(x) for x in meta.uniques)
+      elif isinstance(meta, TagMetadata):
+        res = any(query_fn(x) for x in meta.tags)
+      if res:
+        texts.append(meta.display_name(key))
+    return texts
 
   def _transform_traj(self, traj, transformations):
     if transformations is None:

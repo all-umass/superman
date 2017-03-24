@@ -1,5 +1,8 @@
+from __future__ import absolute_import
 import numpy as np
 import operator
+
+from ._search import parse_query
 
 __all__ = [
     'NumericMetadata', 'BooleanMetadata', 'LookupMetadata', 'TagMetadata',
@@ -188,8 +191,9 @@ class LookupMetadata(_BaseMetadata):
     # if no values are provided, try searching
     query = filt_dict['search']
     if query:
-      # TODO: implement text search
-      return True
+      query_fn = parse_query(query)
+      search_labels, = np.where([query_fn(x) for x in self.uniques])
+      return np.in1d(self.labels, search_labels)
     # if no values or query, accept everything
     return True
 
@@ -259,8 +263,8 @@ class PrimaryKeyMetadata(_BaseMetadata):
     # if no keys are provided, try searching
     query = filt_dict['search']
     if query:
-      # TODO: implement text search
-      return True
+      query_fn = parse_query(query)
+      return np.array([query_fn(x) for x in self.keys], dtype=bool)
     # if no keys or query, accept everything
     return True
 
