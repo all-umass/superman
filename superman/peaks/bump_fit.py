@@ -218,8 +218,12 @@ def _select_top99(bands, fit_func, params):
   fit_data = fit_func(bands, *params)
   # TODO: decide if np.percentile(fit_data, 1) is a better cutoff
   cutoff = fit_data.min()*0.99 + fit_data.max()*0.01
-  mask = fit_data > cutoff
+  mask = fit_data >= cutoff
   peak_x = bands[mask]
+  if len(peak_x) < 2:
+    cutoff = np.partition(fit_data, -2)[-2]
+    mask = fit_data >= cutoff
+    peak_x = bands[mask]
   peak_y = fit_data[mask]
   return mask, peak_x, peak_y
 
