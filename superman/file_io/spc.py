@@ -192,12 +192,12 @@ SPCFile = Struct(
 def prettyprint(data):
   np.set_printoptions(precision=4, suppress=True)
   h = data.Header
-  d = h.Date
   print('SPC file, version %s (%s)' % (h.version, VERSIONS[h.version]))
   try:
+    d = h.Date
     print('Date:', datetime(d.year, d.month, d.day, d.hour, d.minute))
-  except ValueError:
-    pass  # Sometimes dates are not provided, and are all zeros
+  except AttributeError, ValueError:
+    pass  # Sometimes dates are not provided, or are all zeros
   if hasattr(h, 'experiment_type'):
     print('Experiment:', EXPERIMENT_TYPES[h.experiment_type])
   print('X axis:', X_AXIS_LABELS[h.xtype])
@@ -208,7 +208,8 @@ def prettyprint(data):
     print('W axis:', X_AXIS_LABELS[h.wtype])
   if data.xvals is not None:
     assert h.TFlags.has_xs
-    print('X:', np.array(data.xvals()))
+    x = np.array(data.xvals())
+    print('X (%d values):' % len(x), x)
   else:
     print('X: linspace(%g, %g, %d)' % (h.first, h.last, h.npts))
   print('%d subfiles' % len(data.Subfile))
