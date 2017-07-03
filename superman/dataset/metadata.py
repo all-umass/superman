@@ -137,6 +137,7 @@ class BooleanMetadata(_RepeatedMetadata):
 
 class TagMetadata(_RepeatedMetadata):
   def __init__(self, taglists, display_name=None, repeats=1):
+    taglists = [tags.split() for tags in taglists if isinstance(tags,(str,unicode))]
     tagset = reduce(set.union, taglists, set())
     num_tags = len(tagset)
     assert num_tags <= 64, 'Too many tags for TagMetadata (%d)' % num_tags
