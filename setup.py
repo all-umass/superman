@@ -52,12 +52,10 @@ if use_cython:
       '-Wno-unreachable-code'
   ]
   exts = [
-      Extension('*', ['superman/distance/_pdist.pyx',
-                      'superman/distance/common.pyx'],
+      Extension('*', ['superman/distance/_pdist.pyx'],
                 extra_compile_args=['-fopenmp'] + extra_args,
                 extra_link_args=['-Ofast', '-fopenmp', '-march=native']),
-      Extension('*', [pyx_file, 'superman/distance/common.pyx'],
-                extra_compile_args=extra_args),
+      Extension('*', [pyx_file], extra_compile_args=extra_args),
       Extension('*', ['superman/distance/common.pyx'],
                 extra_compile_args=extra_args),
   ]
