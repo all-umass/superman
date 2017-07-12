@@ -196,7 +196,7 @@ def prettyprint(data):
   try:
     d = h.Date
     print('Date:', datetime(d.year, d.month, d.day, d.hour, d.minute))
-  except AttributeError, ValueError:
+  except (AttributeError, ValueError):
     pass  # Sometimes dates are not provided, or are all zeros
   if hasattr(h, 'experiment_type'):
     print('Experiment:', EXPERIMENT_TYPES[h.experiment_type])

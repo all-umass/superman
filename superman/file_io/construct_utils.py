@@ -28,11 +28,11 @@ class FixedSizeCString(Adapter):
     Adapter.__init__(self, String(size_fn))
 
   def _decode(self, obj, ctx):
-    return obj.split('\0',1)[0]
+    return obj.split(b'\0',1)[0]
 
   def _encode(self, obj, ctx):
     size = self._sizeof(ctx, None)
-    return obj.ljust(size, '\0')[:size]
+    return obj.ljust(size, b'\0')[:size]
 
 
 def FunctionSwitch(cond_pairs, default=Pass):

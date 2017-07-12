@@ -19,9 +19,9 @@ class OpusTests(unittest.TestCase):
 
     xx, params = parse_opus(open(fname, 'rb'), return_params=True)
     assert_array_almost_equal(x, xx)
-    self.assertEqual(params['SNM'], 'HECTO')
-    self.assertEqual(params['SFM'], '')
-    self.assertEqual(params['CNM'], 'Administrator')
+    self.assertEqual(params[b'SNM'], b'HECTO')
+    self.assertEqual(params[b'SFM'], b'')
+    self.assertEqual(params[b'CNM'], b'Administrator')
 
   def test_roundtrip(self):
     x = np.column_stack((np.arange(5), np.random.random(5)))

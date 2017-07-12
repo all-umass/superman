@@ -2,12 +2,13 @@
 Siemens/Bruker Diffrac-AT Raw Format
  * https://github.com/wojdyr/xylib/blob/master/xylib/brucker_raw.cpp
 '''
+from __future__ import absolute_import
 import numpy as np
 from construct import (
   Padding, Struct, Switch, String, Array, Const, OnDemand, Embedded, Computed,
   Int32ul, Int16ul, Float64l, Float32l, this, Check
 )
-from construct_utils import FixedSizeCString
+from .construct_utils import FixedSizeCString
 
 Block_v2 = Struct(
     'header_len'/Int16ul,

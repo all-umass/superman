@@ -54,7 +54,7 @@ Parameter = Struct(
     'ReservedSpace'/Int16ul,
     # Only look for a Value if this isn't the END pseudo-parameter.
     'Value'/If(
-        this.Name != 'END',
+        this.Name != b'END',
         Switch(this.Type, {'INT32': Int32ul, 'REAL64': Float64l},
                default=FixedSizeCString(this.ReservedSpace * 2))
     )
@@ -64,7 +64,7 @@ Parameter = Struct(
 def is_ParameterList(block):
   return block.BlockType.param != 0
 
-ParameterList = RepeatUntil(obj_.Name == 'END', Parameter)
+ParameterList = RepeatUntil(obj_.Name == b'END', Parameter)
 FloatData = Array(this.BlockLength, Float32l)
 StringData = String(this.BlockLength*4)
 
@@ -127,8 +127,8 @@ def parse_traj(fh, return_params=False):
   if y_vals is None:
     raise ValueError('No ratio data found.')
 
-  y_vals *= params['CSF']  # CSF == scale factor
-  x_vals = np.linspace(params['FXV'], params['LXV'], len(y_vals))
+  y_vals *= params[b'CSF']  # CSF == scale factor
+  x_vals = np.linspace(params[b'FXV'], params[b'LXV'], len(y_vals))
   traj = np.transpose((x_vals, y_vals))
   # Some spectra are flipped.
   if traj[0,0] > traj[-1,0]:
@@ -140,11 +140,14 @@ def parse_traj(fh, return_params=False):
 
 def write_opus(fname, traj, comments):
   '''Write an OPUS file to `fname`.'''
+  # Convert comments to bytes, if needed.
+  if hasattr(comments, 'encode'):
+    comments = comments.encode('utf-8')
   # Ensure comment length is a multiple of 4.
   nc = len(comments)
   if nc % 4 != 0:
     nc = ((nc//4)+1)*4
-    comments = comments.ljust(nc, ' ')
+    comments = comments.ljust(nc, b' ')
 
   # Sanity check band step size.
   bands, ampl = traj.T
@@ -156,15 +159,15 @@ def write_opus(fname, traj, comments):
     bands = new_bands
 
   meta_param = [
-      Container(Name='DPF', Type='INT32', Value=1, ReservedSpace=0),
-      Container(Name='NPT', Type='INT32', Value=bands.size, ReservedSpace=0),
-      Container(Name='FXV', Type='INT32', Value=bands[0], ReservedSpace=0),
-      Container(Name='LXV', Type='INT32', Value=bands[-1], ReservedSpace=0),
-      Container(Name='CSF', Type='REAL64', Value=1.0, ReservedSpace=0),
-      Container(Name='MXY', Type='REAL64', Value=ampl.max(), ReservedSpace=0),
-      Container(Name='MNY', Type='REAL64', Value=ampl.min(), ReservedSpace=0),
-      Container(Name='DXU', Type='ENUM', Value='WN', ReservedSpace=2),
-      Container(Name='END', Type='INT32', Value=0, ReservedSpace=0)
+      Container(Name=b'DPF', Type='INT32', Value=1, ReservedSpace=0),
+      Container(Name=b'NPT', Type='INT32', Value=bands.size, ReservedSpace=0),
+      Container(Name=b'FXV', Type='INT32', Value=int(bands[0]), ReservedSpace=0),
+      Container(Name=b'LXV', Type='INT32', Value=int(bands[-1]), ReservedSpace=0),
+      Container(Name=b'CSF', Type='REAL64', Value=1.0, ReservedSpace=0),
+      Container(Name=b'MXY', Type='REAL64', Value=ampl.max(), ReservedSpace=0),
+      Container(Name=b'MNY', Type='REAL64', Value=ampl.min(), ReservedSpace=0),
+      Container(Name=b'DXU', Type='ENUM', Value=b'WN', ReservedSpace=2),
+      Container(Name=b'END', Type='INT32', Value=0, ReservedSpace=0)
   ]
   meta_param_size = 30  # 3 for each param, +1 for each 64-bit
 
