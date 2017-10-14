@@ -6,18 +6,24 @@ T. Boucher, C. Carey, S. Giguere, D. Dyar, S. Mahadevan
 
 ### Installation
 
-    python setup.py install  # may need sudo
+Superman must be built from source, so make sure you have a working
+C compiler, Python headers, and OpenMP before proceeding.
 
-If you're making changes, try running:
+    pip install Cython
+    pip install superman
 
-    python setup.py develop  # may also need sudo
+If you're contributing to superman:
+
+    git clone git@github.com:all-umass/superman.git
+    cd superman
+    pip install -e .
 
 This will add the local superman package to your PYTHONPATH,
 which means any changes you make will be reflected right away.
 
 ### Testing
 
-Use `nose2` to run the test suite,
+Use `nose2` or `pytest` to run the test suite,
 or `nose2 -C` to also generate a coverage report.
 Note that if you try running tests with `nosetests`,
 only some of the test suite is detected and run.
