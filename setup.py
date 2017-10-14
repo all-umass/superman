@@ -16,7 +16,7 @@ else:
 
 setup_kwargs = dict(
     name='superman',
-    version='0.0.1',
+    version='0.1.0',
     author='CJ Carey',
     author_email='perimosocordiae@gmail.com',
     description='Spectrum preprocessing machine.',

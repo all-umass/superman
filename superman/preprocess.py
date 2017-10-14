@@ -211,9 +211,19 @@ def _smooth(window, order):
     return scipy.signal.savgol_filter(S, window, order, deriv=0)
   return fn
 
+
+def _offset(y):
+  y = float(y)
+
+  def fn(S, w):
+    S += y
+    return S
+  return fn
+
 # Lookup table of pp-string name -> pipeline function maker
 PP_STEPS = dict(squash=_squash, normalize=_normalize, poly=_polysquash,
-                smooth=_smooth, deriv=_deriv, pca=_pca, bezier=_bezier)
+                smooth=_smooth, deriv=_deriv, pca=_pca, bezier=_bezier,
+                offset=_offset)
 
 
 def cumulative_norm(S):
