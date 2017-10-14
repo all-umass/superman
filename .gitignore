@@ -3,6 +3,7 @@
 *.c
 *.so
 build/
+dist/
 .coverage
 htmlcov/
 .cache/
