@@ -1,18 +1,24 @@
 # Superman
 
-*SpectrUm PrEpRocessin MAchiNe*
+*SpectrUm PrEpRocessing MAchiNe*
 
 T. Boucher, C. Carey, S. Giguere, D. Dyar, S. Mahadevan
 
 ### Installation
 
-Superman must be built from source, so make sure you have a working
+Python versions 2.7 and 3.4+ are supported.
+
+Linux users can install pre-built wheels using `pip`:
+
+    pip install --use-wheel superman
+
+Others must must build from source, so make sure you have a working
 C compiler, Python headers, and OpenMP before proceeding.
 
     pip install Cython
     pip install superman
 
-If you're contributing to superman:
+If you're contributing to superman, or want to make local changes:
 
     git clone git@github.com:all-umass/superman.git
     cd superman
