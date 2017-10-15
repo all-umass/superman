@@ -10,7 +10,7 @@ Python versions 2.7 and 3.4+ are supported.
 
 Linux users can install pre-built wheels using `pip`:
 
-    pip install --use-wheel superman
+    pip install --only-binary :all: superman
 
 Others must must build from source, so make sure you have a working
 C compiler, Python headers, and OpenMP before proceeding.
@@ -26,6 +26,12 @@ If you're contributing to superman, or want to make local changes:
 
 This will add the local superman package to your PYTHONPATH,
 which means any changes you make will be reflected right away.
+
+Some functionality is not available unless optional dependencies are installed:
+
+ * PyWavelets for wavelet baseline removal: `pip install pywavelets`
+ * xylib for parsing some spectrum files: `pip install xylib-py`
+ * Metakit for parsing .wxd files
 
 ### Testing
 
