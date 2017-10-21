@@ -3,7 +3,7 @@ import numpy as np
 from numpy.testing import assert_array_almost_equal
 import unittest
 
-from ..preprocess import preprocess
+from ..pipeline import preprocess
 
 # static test fixture data
 y = np.linspace(0, 1, 10)
