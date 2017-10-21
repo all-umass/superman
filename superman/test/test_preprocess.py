@@ -26,7 +26,7 @@ class PreprocessTests(unittest.TestCase):
     result = preprocess(vectors, 'smooth:5:2,deriv:3:1,pca:2')
     self.assertEqual((3,2), result.shape)
 
-    result = preprocess(vectors, 'offset:-1.5')
+    result = preprocess(vectors, 'offset:0:-1.5')
     assert_array_almost_equal(vectors - 1.5, result)
 
   def test_pp_traj(self):
