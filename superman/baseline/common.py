@@ -40,7 +40,7 @@ class Baseline(object):
     and fits a separate baseline per segment.
     When invert=True, computes baseline on a flipped-intensity spectrum.'''
     if invert:
-      offset = intensities.min(axis=0) + intensities.max(axis=0)
+      offset = intensities.min(axis=-1) + intensities.max(axis=-1)
       intensities = offset - intensities
     if segment:
       segments = _segment(bands, intensities)
