@@ -23,7 +23,7 @@ def parse(fh, return_comments=False):
     if not m:
       raise ValueError('Failed to parse line:\n' + line)
     try:
-      data.append(map(float, m.groups()))
+      data.append([float(n) for n in m.groups()])
     except ValueError:
       pass  # TODO: do something here
   # clean up / validate
