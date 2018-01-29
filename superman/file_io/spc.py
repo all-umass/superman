@@ -2,7 +2,7 @@ from __future__ import absolute_import, print_function
 import numpy as np
 from datetime import datetime
 from construct import (
-    Tell, Array, BitStruct, Byte, Embedded, FieldError, Flag, If, IfThenElse,
+    Tell, Array, BitStruct, Byte, ConstructError, Embedded, Flag, If, IfThenElse,
     OnDemand, Padding, Pointer, String, Struct, Switch, Computed, this,
     Float64l, Float32l, Int32sl, Int16sl, Int32ul
 )
@@ -219,7 +219,7 @@ def prettyprint(data):
     print('LogData:')
     try:
       print(data.LogData.content())
-    except FieldError as e:
+    except ConstructError as e:
       print('    Error reading log:', e)
 
 
