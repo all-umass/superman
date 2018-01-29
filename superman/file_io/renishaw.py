@@ -128,8 +128,8 @@ TaggedData = Struct(
 )
 # Specialization for loading float data faster
 TaggedFloat64 = ExprAdapter(
-    Struct(Const('tag'/Int16ul, 5), 'value'/Float64l),
-    encoder=lambda obj, ctx: Container(tag=obj.tag, value=obj.value),
+    Struct(Const(5, Int16ul), 'value'/Float64l),
+    encoder=lambda obj, ctx: Container(value=obj.value),
     decoder=lambda obj, ctx: obj.value)
 DataList = Struct(
     'size'/Int64ul,
