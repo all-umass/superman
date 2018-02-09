@@ -1,7 +1,7 @@
 """Uses Mk4py, aka metakit.
 Python bindings are native-compiled: http://equi4.com/metakit/python.html
 """
-from __future__ import print_function
+from __future__ import print_function, absolute_import
 import Mk4py
 import numpy as np
 import os
@@ -11,9 +11,11 @@ from argparse import ArgumentParser
 from construct import (
     Struct, Int64ul, Array, Const, Float64l, Int32sl, Int16ul, Switch, Int32ul,
     String, Padding, Adapter, Container, GreedyRange, IfThenElse, Peek,
-    Embedded, OnDemand, ExprAdapter, this
+    Embedded, ExprAdapter, this
 )
 from matplotlib import pyplot as plt
+
+from .construct_utils import LazyField
 
 
 def parse_wxd(f):
@@ -133,7 +135,7 @@ TaggedFloat64 = ExprAdapter(
     decoder=lambda obj, ctx: obj.value)
 DataList = Struct(
     'size'/Int64ul,
-    OnDemand(Array(lambda ctx: ctx.size, TaggedFloat64)),
+    LazyField(Array(lambda ctx: ctx.size, TaggedFloat64)),
     Const('\xc0\xff\xee\x01')  # XXX: probably useful
 )
 # XXX: hacks

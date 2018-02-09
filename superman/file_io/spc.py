@@ -3,11 +3,11 @@ import numpy as np
 from datetime import datetime
 from construct import (
     Tell, Array, BitStruct, Byte, ConstructError, Embedded, Flag, If, IfThenElse,
-    OnDemand, Padding, Pointer, String, Struct, Switch, Computed, this,
+    Padding, Pointer, String, Struct, Switch, Computed, this,
     Float64l, Float32l, Int32sl, Int16sl, Int32ul
 )
 
-from .construct_utils import BitSplitter, FixedSizeCString
+from .construct_utils import BitSplitter, FixedSizeCString, LazyField
 
 X_AXIS_LABELS = [
     "Arbitrary", "Wavenumber (cm-1)", "Micrometers (um)", "Nanometers (nm)",
@@ -160,10 +160,10 @@ Subfile = Struct(
     'exponent'/Computed(
         lambda ctx: ctx.exp if 0 < ctx.exp < 128 else ctx._.Header.exp),
     'raw_x'/If(this._.Header.TFlags.use_subfile_xs,
-               OnDemand(Array(this.num_pts, Int32sl))),
+               LazyField(Array(this.num_pts, Int32sl))),
     'raw_y'/IfThenElse(this.float_y,
-                       OnDemand(Array(this.num_pts, Float32l)),
-                       OnDemand(Array(this.num_pts, Int32sl)))
+                       LazyField(Array(this.num_pts, Float32l)),
+                       LazyField(Array(this.num_pts, Int32sl)))
 )
 
 LogData = Struct(
@@ -175,14 +175,14 @@ LogData = Struct(
     'dsks'/Int32sl,
     Padding(44),
     'content'/Pointer(this.log_start + this.text_offset,
-                      OnDemand(String(this.sizd)))
+                      LazyField(String(this.sizd)))
 )
 
 # The entire file.
 SPCFile = Struct(
     'Header'/Header,
     'xvals'/If(this.Header.TFlags.has_xs,
-               OnDemand(Array(this.Header.npts, Float32l))),
+               LazyField(Array(this.Header.npts, Float32l))),
     'Subfile'/Array(this.Header.nsub, Subfile),
     'LogData'/If(this.Header.log_offset != 0,
                  Pointer(this.Header.log_offset, LogData))

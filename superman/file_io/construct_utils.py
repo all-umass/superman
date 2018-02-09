@@ -1,5 +1,11 @@
 from construct import Adapter, Container, IfThenElse, Pass, String
 
+try:
+  from construct import LazyField
+except ImportError:
+  # pre version 2.9 name
+  from construct import OnDemand as LazyField
+
 
 class BitSplitter(Adapter):
   '''Hacks around lack of little-endian BitField support.

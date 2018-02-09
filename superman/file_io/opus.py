@@ -2,12 +2,14 @@ from __future__ import absolute_import, print_function
 import numpy as np
 from collections import defaultdict
 from construct import (
-    Array, Enum, Const, OnDemand, Pointer, Container,
+    Array, Enum, Const, Pointer, Container,
     RepeatUntil, String, Struct, Switch, If,
     Float32l, Float64l, Int16ul, Int32ul, this, obj_
 )
 
-from .construct_utils import BitSplitter, FixedSizeCString, FunctionSwitch
+from .construct_utils import (
+    BitSplitter, FixedSizeCString, FunctionSwitch, LazyField
+)
 
 
 BlockType = BitSplitter(Int32ul,
@@ -76,8 +78,8 @@ DirectoryEntry = Struct(
         this.DataPtr,
         FunctionSwitch([
             (is_ParameterList, ParameterList),
-            (lambda ctx: ctx.BlockType.extend != 0, OnDemand(StringData)),
-            (lambda ctx: ctx.BlockType.data not in (0,13), OnDemand(FloatData))
+            (lambda ctx: ctx.BlockType.extend != 0, LazyField(StringData)),
+            (lambda ctx: ctx.BlockType.data not in (0,13), LazyField(FloatData))
         ])
     )
 )

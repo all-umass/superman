@@ -5,10 +5,10 @@ Siemens/Bruker Diffrac-AT Raw Format
 from __future__ import absolute_import
 import numpy as np
 from construct import (
-  Padding, Struct, Switch, String, Array, Const, OnDemand, Embedded, Computed,
+  Padding, Struct, Switch, String, Array, Const, Embedded, Computed,
   Int32ul, Int16ul, Float64l, Float32l, this, Check
 )
-from .construct_utils import FixedSizeCString
+from .construct_utils import FixedSizeCString, LazyField
 
 Block_v2 = Struct(
     'header_len'/Int16ul,
@@ -20,7 +20,7 @@ Block_v2 = Struct(
     Padding(26),
     'temperature'/Int16ul,
     Padding(this.header_len - 48),
-    'y'/OnDemand(Array(this.num_steps, Float32l))
+    'y'/LazyField(Array(this.num_steps, Float32l))
 )
 
 RAW_v2 = Struct(
@@ -61,7 +61,7 @@ Block_v101 = Struct(
     Padding(8),
     'supplementary_headers_size'/Int32ul,
     Padding(this.supplementary_headers_size + 44),
-    'y'/OnDemand(Array(this.num_steps, Float32l))
+    'y'/LazyField(Array(this.num_steps, Float32l))
 )
 
 RAW_v101 = Struct(
