@@ -1,4 +1,4 @@
-from construct import Adapter, Container, IfThenElse, Pass, String
+from construct import Adapter, Container, IfThenElse, Pass, Bytes
 
 try:
   from construct import LazyField
@@ -31,7 +31,7 @@ class BitSplitter(Adapter):
 class FixedSizeCString(Adapter):
   '''Marries a C-style null-terminated string with a fixed-length field.'''
   def __init__(self, size_fn):
-    Adapter.__init__(self, String(size_fn))
+    Adapter.__init__(self, Bytes(size_fn))
 
   def _decode(self, obj, ctx):
     return obj.split(b'\0',1)[0]

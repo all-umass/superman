@@ -3,7 +3,7 @@ import numpy as np
 from collections import defaultdict
 from construct import (
     Array, Enum, Const, Pointer, Container,
-    RepeatUntil, String, Struct, Switch, If,
+    RepeatUntil, Bytes, Struct, Switch, If,
     Float32l, Float64l, Int16ul, Int32ul, this, obj_
 )
 
@@ -68,7 +68,7 @@ def is_ParameterList(block):
 
 ParameterList = RepeatUntil(obj_.Name == b'END', Parameter)
 FloatData = Array(this.BlockLength, Float32l)
-StringData = String(this.BlockLength*4)
+StringData = Bytes(this.BlockLength*4)
 
 DirectoryEntry = Struct(
     'BlockType'/BlockType,

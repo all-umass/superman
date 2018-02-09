@@ -3,7 +3,7 @@ import numpy as np
 from datetime import datetime
 from construct import (
     Tell, Array, BitStruct, Byte, ConstructError, Embedded, Flag, If, IfThenElse,
-    Padding, Pointer, String, Struct, Switch, Computed, this,
+    Padding, Pointer, Bytes, Struct, Switch, Computed, this,
     Float64l, Float32l, Int32sl, Int16sl, Int32ul
 )
 
@@ -135,7 +135,7 @@ def _wrong_version_error(ctx):
 
 Header = Struct(
     'TFlags'/TFlags,
-    'version'/String(1),
+    'version'/Bytes(1),
     Embedded(Switch(this.version, {
         'K': HeaderVersionK,
         'L': Computed(_wrong_version_error),
@@ -175,7 +175,7 @@ LogData = Struct(
     'dsks'/Int32sl,
     Padding(44),
     'content'/Pointer(this.log_start + this.text_offset,
-                      LazyField(String(this.sizd)))
+                      LazyField(Bytes(this.sizd)))
 )
 
 # The entire file.
