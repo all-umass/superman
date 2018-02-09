@@ -5,7 +5,7 @@ Siemens/Bruker Diffrac-AT Raw Format
 from __future__ import absolute_import
 import numpy as np
 from construct import (
-  Padding, Struct, Switch, String, Array, Const, Embedded, Computed,
+  Padding, Struct, Switch, Bytes, Array, Const, Embedded, Computed,
   Int32ul, Int16ul, Float64l, Float32l, this, Check
 )
 from .construct_utils import FixedSizeCString, LazyField
@@ -97,7 +97,7 @@ def _unsupported_version(ctx):
 
 RAW = Struct(
   Const(b'RAW'),
-  'version'/String(1),
+  'version'/Bytes(1),
   Embedded(Switch(this.version, {
     '2': RAW_v2,
     '1': RAW_v101

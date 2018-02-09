@@ -10,7 +10,7 @@ import zlib
 from argparse import ArgumentParser
 from construct import (
     Struct, Int64ul, Array, Const, Float64l, Int32sl, Int16ul, Switch, Int32ul,
-    String, Padding, Adapter, Container, GreedyRange, IfThenElse, Peek,
+    Bytes, Padding, Adapter, Container, GreedyRange, IfThenElse, Peek,
     Embedded, ExprAdapter, this
 )
 from matplotlib import pyplot as plt
@@ -100,7 +100,7 @@ class VBStringAdapter(Adapter):
   def __init__(self):
     # TODO: replace this with construct.PascalString
     vbs = Struct('length'/Int32ul,
-                 'value'/String(this.length - 2),
+                 'value'/Bytes(this.length - 2),
                  Const(b'\x00\x00'))  # There's always an ending null
     Adapter.__init__(self, vbs)
 
@@ -141,7 +141,7 @@ DataList = Struct(
 # XXX: hacks
 bad_strings = ('\xc0\xff\xee\x01\x00\x00', '\x01#Eg\x00\x00')
 Property = Struct(
-    'peek'/Peek(String(6)),
+    'peek'/Peek(Bytes(6)),
     Embedded(IfThenElse(
         this.peek in bad_strings,
         Padding(6),
