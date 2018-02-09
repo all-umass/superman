@@ -13,7 +13,7 @@ ap.add_argument('--no-legend', action='store_false', dest='legend',
                 help='Turn off figure legend')
 ap.add_argument('--pp', default='normalize:max', help='Preprocess string')
 ap.add_argument('--baseline', default='none', help='Baseline algorithm',
-                choices=BL_CLASSES.keys() + ['none'])
+                choices=list(BL_CLASSES.keys()) + ['none'])
 ap.add_argument('--type', choices=PARSERS,
                 help=('Parser type to use for all files. If not provided, '
                       'all parsers will be attempted.'))
