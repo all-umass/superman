@@ -42,9 +42,9 @@ EXPERIMENT_TYPES = [
 ]
 
 VERSIONS = {
-    'K': 'new LSB 1st',
-    'L': 'new MSB 1st',
-    'M': 'old format'
+    b'K': 'new LSB 1st',
+    b'L': 'new MSB 1st',
+    b'M': 'old format'
 }
 
 TFlags = BitStruct(
@@ -93,7 +93,6 @@ HeaderVersionK = Struct(
     'peakpt'/Int16sl,
     Padding(32),
     'comment'/FixedSizeCString(130),
-    FixedSizeCString(130),
     'catxt'/FixedSizeCString(30),
     'log_offset'/Int32sl,
     'mods'/Int32sl,
@@ -136,11 +135,11 @@ def _wrong_version_error(ctx):
 Header = Struct(
     'TFlags'/TFlags,
     'version'/Bytes(1),
-    Embedded(Switch(this.version, {
-        'K': HeaderVersionK,
-        'L': Computed(_wrong_version_error),
-        'M': HeaderVersionM,
-    }, default=Computed(_wrong_version_error)))
+    'header'/Switch(this.version, {
+        b'K': HeaderVersionK,
+        b'L': Computed(_wrong_version_error),
+        b'M': HeaderVersionM,
+    }, default=Computed(_wrong_version_error))
 )
 
 Subfile = Struct(
@@ -156,9 +155,9 @@ Subfile = Struct(
     Padding(4),
     'float_y'/Computed(this.exp == 128),
     'num_pts'/Computed(
-        lambda ctx: ctx.npts if ctx.npts > 0 else ctx._.Header.npts),
+        lambda ctx: ctx.npts if ctx.npts > 0 else ctx._.Header.header.npts),
     'exponent'/Computed(
-        lambda ctx: ctx.exp if 0 < ctx.exp < 128 else ctx._.Header.exp),
+        lambda ctx: ctx.exp if 0 < ctx.exp < 128 else ctx._.Header.header.exp),
     'raw_x'/If(this._.Header.TFlags.use_subfile_xs,
                LazyField(Array(this.num_pts, Int32sl))),
     'raw_y'/IfThenElse(this.float_y,
@@ -182,22 +181,23 @@ LogData = Struct(
 SPCFile = Struct(
     'Header'/Header,
     'xvals'/If(this.Header.TFlags.has_xs,
-               LazyField(Array(this.Header.npts, Float32l))),
-    'Subfile'/Array(this.Header.nsub, Subfile),
-    'LogData'/If(this.Header.log_offset != 0,
-                 Pointer(this.Header.log_offset, LogData))
+               LazyField(Array(this.Header.header.npts, Float32l))),
+    'Subfile'/Array(this.Header.header.nsub, Subfile),
+    'LogData'/If(this.Header.header.log_offset != 0,
+                 Pointer(this.Header.header.log_offset, LogData))
 )
 
 
 def prettyprint(data):
   np.set_printoptions(precision=4, suppress=True)
-  h = data.Header
-  print('SPC file, version %s (%s)' % (h.version, VERSIONS[h.version]))
+  version = data.Header.version
+  h = data.Header.header
+  print('SPC file, version %s (%s)' % (version, VERSIONS[version]))
+  d = h.date
   try:
-    d = h.Date
     print('Date:', datetime(d.year, d.month, d.day, d.hour, d.minute))
-  except (AttributeError, ValueError):
-    pass  # Sometimes dates are not provided, or are all zeros
+  except ValueError:
+    pass  # Sometimes dates are all zeros
   if hasattr(h, 'experiment_type'):
     print('Experiment:', EXPERIMENT_TYPES[h.experiment_type])
   print('X axis:', X_AXIS_LABELS[h.xtype])
@@ -213,8 +213,8 @@ def prettyprint(data):
   else:
     print('X: linspace(%g, %g, %d)' % (h.first, h.last, h.npts))
   print('%d subfiles' % len(data.Subfile))
-  for i, sub in enumerate(data.Subfile):
-    print('Subfile %d:' % (i+1), sub)
+  for i, sub in enumerate(data.Subfile, start=1):
+    print('Subfile %d:' % i, sub)
   if data.LogData is not None:
     print('LogData:')
     try:
@@ -226,7 +226,7 @@ def prettyprint(data):
 def _convert_arrays(data):
   '''Generates a sequence of properly-converted (x,y) array pairs,
   one for each subpage.'''
-  h = data.Header
+  h = data.Header.header
   if data.xvals is not None:
     assert h.TFlags.has_xs
     x_vals = np.array(data.xvals())
@@ -243,7 +243,7 @@ def _convert_arrays(data):
       y = np.array(sub.raw_y(), dtype=float)
     else:
       yraw = np.array(sub.raw_y(), dtype=np.int32)
-      if h.version == 'M':
+      if data.Header.version == b'M':
         # old version needs different raw_y handling
         # TODO: fix this mess, if possible
         yraw = yraw.view(np.uint16).byteswap().view(np.uint32).byteswap()
@@ -253,7 +253,7 @@ def _convert_arrays(data):
 
 def plot(data):
   from matplotlib import pyplot
-  h = data.Header
+  h = data.Header.header
   x_label = X_AXIS_LABELS[h.xtype]
   y_label = Y_AXIS_LABELS[h.ytype]
   for x, y in _convert_arrays(data):
@@ -269,7 +269,8 @@ def parse_traj(fh):
   if hasattr(fh, 'mode') and 'b' not in fh.mode:
     fh = open(fh.name, 'rb')
   data = SPCFile.parse_stream(fh)
-  assert data.Header.nsub == 1, 'parse_traj only supports 1 SPC subfile'
+  h = data.Header.header
+  assert h.nsub == 1, 'parse_traj only supports 1 SPC subfile'
   for x, y in _convert_arrays(data):
     return np.transpose((x, y))
 

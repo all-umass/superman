@@ -5,7 +5,7 @@ Siemens/Bruker Diffrac-AT Raw Format
 from __future__ import absolute_import
 import numpy as np
 from construct import (
-  Padding, Struct, Switch, Bytes, Array, Const, Embedded, Computed,
+  Padding, Struct, Switch, Bytes, Array, Const, Computed,
   Int32ul, Int16ul, Float64l, Float32l, this, Check
 )
 from .construct_utils import FixedSizeCString, LazyField
@@ -24,7 +24,7 @@ Block_v2 = Struct(
 )
 
 RAW_v2 = Struct(
-    'num_steps'/Int32ul,
+    'num_blocks'/Int32ul,
     Padding(162),
     'date_time_measure'/FixedSizeCString(20),
     'anode_material'/FixedSizeCString(2),
@@ -34,7 +34,7 @@ RAW_v2 = Struct(
     Padding(8),
     'sample_runtime'/Float32l,
     Padding(42),
-    'blocks'/Array(this.num_steps, Block_v2)
+    'blocks'/Array(this.num_blocks, Block_v2)
 )
 
 Block_v101 = Struct(
@@ -92,16 +92,16 @@ RAW_v101 = Struct(
 
 
 def _unsupported_version(ctx):
-  v = '1' if ctx.version == ' ' else ctx.version
+  v = b'1' if ctx.version == b' ' else ctx.version
   raise NotImplementedError('Bruker RAW version %r is not implemented' % v)
 
 RAW = Struct(
   Const(b'RAW'),
   'version'/Bytes(1),
-  Embedded(Switch(this.version, {
-    '2': RAW_v2,
-    '1': RAW_v101
-  }, default=Computed(_unsupported_version)))
+  'body'/Switch(this.version, {
+    b'2': RAW_v2,
+    b'1': RAW_v101,
+  }, default=Computed(_unsupported_version))
 )
 
 
@@ -110,13 +110,13 @@ def parse_raw(fh):
   if hasattr(fh, 'mode') and 'b' not in fh.mode:
     fh = open(fh.name, 'rb')
   data = RAW.parse_stream(fh)
-  assert data.num_blocks == 1, 'Bruker RAW files w/ only 1 block supported'
-  block, = data.blocks
+  assert data.body.num_blocks == 1, 'Bruker RAW files w/ only 1 block supported'
+  block, = data.body.blocks
   n = block.num_steps
-  if data.version == '1':
+  if data.version == b'1':
     x_start = block.start_2theta
     x_stop = x_start + n * block.step_size
-  elif data.version == '2':
+  elif data.version == b'2':
     x_start = block.x_start
     x_stop = x_start + n * block.x_step
   x = np.linspace(x_start, x_stop, num=n, endpoint=False)
