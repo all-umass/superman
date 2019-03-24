@@ -8,12 +8,9 @@ T. Boucher, C. Carey, S. Giguere, D. Dyar, S. Mahadevan
 
 Python versions 2.7 and 3.4+ are supported.
 
-Linux users can install pre-built wheels using `pip`:
-
-    pip install --only-binary :all: superman
-
-Others must must build from source, so make sure you have a working
-C compiler, Python headers, and OpenMP before proceeding.
+The library contains some Cython code that must be compiled,
+so make sure you have a working C compiler, Python headers,
+and OpenMP before proceeding.
 
     pip install Cython
     pip install superman
