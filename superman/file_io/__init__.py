@@ -153,7 +153,7 @@ def parse_spectrum(fh, filetype=None):
     filepath = getattr(fh, 'name', '')
   else:
     filepath = fh
-    fileobj = open(filepath, 'rU')
+    fileobj = open(filepath, 'r')
 
   # Use the specified parser, if given
   if filetype is not None:
