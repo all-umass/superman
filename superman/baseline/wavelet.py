@@ -12,7 +12,7 @@ def wavelet_baseline(intensities, filter_len=4, level=9):
   filter_len : length of the Daubechies wavelet. Must be an even number.
   level : number of wavelet decompositions to perform.
   '''
-  mode = 'cpd'  # constant padding
+  mode = 'constant'  # constant padding
   w = pywt.Wavelet('db%d' % (filter_len//2))
   max_level = pywt.dwt_max_level(len(intensities), w.dec_len)
   res = pywt.wavedec(intensities, w, mode, level=min(level, max_level))
