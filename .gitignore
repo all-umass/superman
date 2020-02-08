@@ -7,3 +7,4 @@ dist/
 .coverage
 htmlcov/
 .cache/
+.pytest_cache/
