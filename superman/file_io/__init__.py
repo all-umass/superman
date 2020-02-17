@@ -172,6 +172,11 @@ def parse_spectrum(fh, filetype=None):
       return parser(fileobj)
     except:
       fileobj.seek(0)
+    # XXX: pd.read_excel() apparently closes the file object,
+    # but only after the exception handler finishes. I have no
+    # idea why, but this hack will suffice for now.
+    if fileobj.closed:
+      fileobj = open(filepath, 'r')
   # Nothing worked, let's try a looser parse.
   return parse_loose(fileobj)
 

@@ -168,6 +168,14 @@ class TagMetadata(_RepeatedMetadata):
     return np.bitwise_and(bitmask, self.arr).astype(bool)
 
 
+def coerce_to_utf8(arr):
+  if arr.dtype.char not in 'US':
+    arr = arr.astype('S')
+  if arr.dtype.char == 'S':
+    arr = np.char.decode(arr, 'utf8')
+  return arr
+
+
 class LookupMetadata(_BaseMetadata):
   def __init__(self, arr, display_name=None, labels=None):
     _BaseMetadata.__init__(self, display_name)
@@ -177,15 +185,12 @@ class LookupMetadata(_BaseMetadata):
       self.uniques = np.asarray(arr)
       self.labels = np.asarray(labels)
     # coerce all values to unicode
-    if self.uniques.dtype.char not in 'US':
-      self.uniques = self.uniques.astype('S')
-    if self.uniques.dtype.char == 'S':
-      self.uniques = np.char.decode(self.uniques, 'utf8')
+    self.uniques = coerce_to_utf8(self.uniques)
 
   def filter(self, filt_dict):
     values = filt_dict['select']
     if values:
-      values = np.char.decode(values, 'utf8')
+      values = coerce_to_utf8(np.array(values))
       val_labels, = np.where(np.in1d(self.uniques, values, assume_unique=True))
       return np.in1d(self.labels, val_labels)
     # if no values are provided, try searching
@@ -238,10 +243,7 @@ class PrimaryKeyMetadata(_BaseMetadata):
     _BaseMetadata.__init__(self, 'Primary Key')
     # Coerce keys to a unicode numpy array
     self.keys = np.array(arr)
-    if self.keys.dtype.char not in 'US':
-      self.keys = self.keys.astype('S')
-    if self.keys.dtype.char == 'S':
-      self.keys = np.char.decode(self.keys, 'utf8')
+    self.keys = coerce_to_utf8(self.keys)
     # Set up the key -> index mapping
     self.index = {key:idx for idx,key in enumerate(self.keys)}
     assert len(self.index) == len(self.keys), 'Primary key array not unique'
@@ -255,7 +257,7 @@ class PrimaryKeyMetadata(_BaseMetadata):
   def filter(self, filt_dict):
     keys = filt_dict['select']
     if keys:
-      keys = np.char.decode(keys, 'utf8')
+      keys = coerce_to_utf8(np.array(keys))
       inds = [self.index[k] for k in keys]
       mask = np.zeros_like(self.keys, dtype=bool)
       mask[inds] = True
