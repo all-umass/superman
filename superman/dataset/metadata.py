@@ -137,7 +137,9 @@ class BooleanMetadata(_RepeatedMetadata):
 
 class TagMetadata(_RepeatedMetadata):
   def __init__(self, taglists, display_name=None, repeats=1):
-    tagset = reduce(set.union, taglists, set())
+    tagset = set()
+    for ts in taglists:
+      tagset.update(ts)
     num_tags = len(tagset)
     assert num_tags <= 64, 'Too many tags for TagMetadata (%d)' % num_tags
     # find the smallest possible dtype for the bitmasks
@@ -235,7 +237,10 @@ class CompositionMetadata(_BaseMetadata):
   def filter(self, sub_conds):
     sub_filters = (self.comps[key].filter(cond)
                    for key, cond in sub_conds.items())
-    return reduce(operator.and_, sub_filters)
+    mask = True
+    for f in sub_filters:
+      mask &= f
+    return mask
 
 
 class PrimaryKeyMetadata(_BaseMetadata):
