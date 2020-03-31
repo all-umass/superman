@@ -79,7 +79,11 @@ def _choose_step(ptp, target_number=100):
 class NumericMetadata(_RepeatedMetadata):
   def __init__(self, arr, step=None, display_name=None, repeats=1):
     _RepeatedMetadata.__init__(self, arr, float, display_name, repeats)
-    self.true_bounds = (np.nanmin(self.arr), np.nanmax(self.arr))
+    self.has_nan = np.isnan(self.arr).any()
+    if self.has_nan:
+      self.true_bounds = (np.nanmin(self.arr), np.nanmax(self.arr))
+    else:
+      self.true_bounds = (np.min(self.arr), np.max(self.arr))
     # compute the displayed bounds
     ptp = self.true_bounds[1] - self.true_bounds[0]
     if np.issubdtype(self.arr.dtype, np.integer):
@@ -107,7 +111,10 @@ class NumericMetadata(_RepeatedMetadata):
     eps = 0.1 * self.step
     if lb - tlb < eps and tub - ub < eps:
       return True
-    return (self.arr >= lb) & (self.arr <= ub)
+    if not self.has_nan:
+      return (self.arr >= lb) & (self.arr <= ub)
+    with np.errstate(invalid='ignore'):
+      return (self.arr >= lb) & (self.arr <= ub)
 
 
 class DateMetadata(_RepeatedMetadata):
