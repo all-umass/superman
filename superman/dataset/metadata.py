@@ -104,17 +104,26 @@ class NumericMetadata(_RepeatedMetadata):
         step = 1.0
     self.step = step
 
+  def _between(self, lb, ub):
+    return (self.arr >= lb) & (self.arr <= ub)
+
   def _filter(self, bounds):
+    if len(bounds) not in (2, 3):
+      raise ValueError('Invalid filter bounds: %r' % bounds)
+    lb, ub = bounds[:2]
+    exclude_nan = bool(bounds[2]) if len(bounds) == 3 else False
+    if self.has_nan and exclude_nan:
+      with np.errstate(invalid='ignore'):
+        return self._between(lb, ub)
     # Check for the trivial case: all within bounds
-    lb, ub = bounds
     tlb, tub = self.true_bounds
     eps = 0.1 * self.step
     if lb - tlb < eps and tub - ub < eps:
       return True
     if not self.has_nan:
-      return (self.arr >= lb) & (self.arr <= ub)
+      return self._between(lb, ub)
     with np.errstate(invalid='ignore'):
-      return (self.arr >= lb) & (self.arr <= ub)
+      return self._between(lb, ub)
 
 
 class DateMetadata(_RepeatedMetadata):
